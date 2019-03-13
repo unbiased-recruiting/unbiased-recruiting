@@ -101,4 +101,9 @@ venv.bak/
 /site
 
 # mypy
-.mypy_cache/
+.mypy_cache
+
+#CSV files
+data_with_gender_rec.cs
+
+/
