@@ -31,7 +31,7 @@ import string
 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n'
 
 #Import stop words
-language = 'english'
+language = 'french'
 stop_words = set(stopwords.words(language)) 
 punctuation = string.punctuation + '-' + '['+ '–'+ '\uf0a7'+ ']' + '•' + filters #remember to remove utf words
 
@@ -41,19 +41,19 @@ def tokenization_and_stop_words_out(text):
   y = [w for w in x if not w in stop_words and not w in punctuation]
   return y
   
-df.loc[:,'cv'] = df['cv'].apply(tokenization_and_stop_words_out)
+df.loc[:,'TXT'] = df['TXT'].apply(tokenization_and_stop_words_out)
 
 """## Encoding labels
 
 Here we use to one hot encoding for encoding genders
 """
 
-y = pd.get_dummies(df['label'])
+y = pd.get_dummies(df['GENRE'])
 y = y.values
 
 """## Splitting into train and test df"""
 
-X =df.drop(['id', 'label'], axis =1)
+X =df.drop(['id', 'GENRE'], axis =1)
 
 from sklearn.model_selection import train_test_split
 
@@ -66,11 +66,11 @@ print(len(df_train))
 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' #punctuation removal
 num_words = 10000
 len_max_seq = 840
-train_values = df_train.loc[:,'cv'].tolist()
-test_values = df_test.loc[:,'cv'].tolist()
+train_values = df_train.loc[:,'TXT'].tolist()
+test_values = df_test.loc[:,'TXT'].tolist()
 
 tokenizer = Tokenizer(num_words = num_words, filters= filters,lower =True)
-tokenizer.fit_on_texts(df_train['cv'].tolist())
+tokenizer.fit_on_texts(df_train['TXT'].tolist())
 
 #Text to sequences
 X_train = tokenizer.texts_to_sequences(train_values)
