@@ -1,39 +1,41 @@
-import io
 import pandas as pd
 import os
 import numpy as np
-import argparse
-import sys
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-import tensorflow as tf
 import string
 import nltk
 
 nltk.download('stopwords')
 nltk.download('punkt')
+
 from nltk.corpus import stopwords 
 from nltk.tokenize import word_tokenize 
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
 
 """# Data processing
 
 ## Loading data
 """
 
-df = pd.read_csv("data_with_gender_rec.csv")
+#Importing
+data_dir = '../data'
+df = pd.read_csv(os.path.join(data_dir,"data_with_gender_rec.csv"))
+
+#leaning data
+df = df[['MATRICULEINT', 'TXT', 'GENRE']]
+df.loc[:,'GENRE'] = pd.to_numeric(df.loc[:,'GENRE'], errors = 'coerce', downcast = 'integer')
+df.dropna(inplace = True)
+df = df[df['GENRE'].isin([1, 2])]
 
 """##Stop words removal"""
-
-import string
 filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n'
 
 #Import stop words
 language = 'french'
 stop_words = set(stopwords.words(language)) 
-punctuation = string.punctuation + '-' + '['+ '–'+ '\uf0a7'+ ']' + '•' + filters #remember to remove utf words
+punctuation = string.punctuation + filters #remember to remove utf words
 
 #Row by row tokenization
 def tokenization_and_stop_words_out(text):
@@ -48,35 +50,43 @@ df.loc[:,'TXT'] = df['TXT'].apply(tokenization_and_stop_words_out)
 Here we use to one hot encoding for encoding genders
 """
 
-y = pd.get_dummies(df['GENRE'])
-y = y.values
+df = pd.get_dummies(df, columns = ['GENRE'])
 
 """## Splitting into train and test df"""
 
-X =df.drop(['id', 'GENRE'], axis =1)
+#Initial split into train and test dataframes
+df_train_init, df_test = train_test_split(df, test_size = 0.25)
 
-from sklearn.model_selection import train_test_split
-
-df_train, df_test, y_train, y_test = train_test_split(X, y, test_size = 0.2)
-
-print(len(df_train))
+#Second split of train dataframe into train and val dataframes
+df_train, df_val = train_test_split(df_train_init, test_size = 0.25)
 
 """## Tokenization"""
 #Tokenizer training 
-filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' #punctuation removal
 num_words = 10000
-len_max_seq = 840
+len_max_seq = df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
+
 train_values = df_train.loc[:,'TXT'].tolist()
-test_values = df_test.loc[:,'TXT'].tolist()
 
 tokenizer = Tokenizer(num_words = num_words, filters= filters,lower =True)
 tokenizer.fit_on_texts(df_train['TXT'].tolist())
 
 #Text to sequences
-X_train = tokenizer.texts_to_sequences(train_values)
-X_test = tokenizer.texts_to_sequences(test_values)
+df_train.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_train.loc[:,'TXT'])
+df_val.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_val.loc[:,'TXT'])
+df_test.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_test.loc[:,'TXT'])
 
 #Padding sequences
-X_train = pad_sequences(X_train, len_max_seq)
-X_test = pad_sequences(X_test, len_max_seq)
+df_train['TXT'] = pad_sequences(df_train.loc[:,'TXT'], len_max_seq).tolist()
+df_val['TXT'] = pad_sequences(df_val.loc[:,'TXT'], len_max_seq).tolist()
+df_test['TXT'] = pad_sequences(df_test.loc[:,'TXT'], len_max_seq).tolist()
+
+"""## Export"""
+df_train.to_csv(os.path.join(data_dir, "train.csv"),index = False)
+df_val.to_csv(os.path.join(data_dir, "val.csv"),index = False)
+df_test.to_csv(os.path.join(data_dir, "test.csv"),index = False)
+
+
+
+
+
 
