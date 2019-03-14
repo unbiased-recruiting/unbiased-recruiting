@@ -66,6 +66,8 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+#Pywharm
+.idea/*
 # PyBuilder
 target/
 
@@ -99,7 +101,7 @@ venv.bak/
 
 # mkdocs documentation
 /site
-
+/data*
 # mypy
 .mypy_cache
 
