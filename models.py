@@ -1,6 +1,10 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import tensorflow as tf
 import pandas as pd
 import os
+import numpy as np
 
 #Load data
 data_dir = os.getcwd()+"/data/"
@@ -71,13 +75,40 @@ sess.run(tf.global_variables_initializer())
 
 correct_prediction = tf.equal(tf.argmax(Y_p,1), tf.argmax(Y,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
+BATCH_SIZE = 1000
 
-for epoch in range(5000):
+for epoch in range(10000):
+    # melange des donnees a chaque epoch (=iteration d'apprentissage)
+    p = np.random.permutation(range(len(X_train)))
+    X_train, y_train = X_train[p], y_train[p]# apprentissage avec des minibatches de taille 1000
+    p2 = np.random.permutation(range(len(X_val)))
+    X_val , y_val = X_val[p2], y_val[p2]
+    for start in range(0, len(X_train), BATCH_SIZE):
+        end = start + BATCH_SIZE
+        optimization_algorithm.run(feed_dict={X: X_train[start:end], Y: y_train[start:end]})
+
     if epoch%500 ==0:
         train_accuracy = accuracy.eval(feed_dict = {X:X_train\
                                                     , Y:y_train})
+        val_accuracy = accuracy.eval(feed_dict = {X:X_val\
+                                                    , Y:y_val})
         print("epoch: %d, training accuracy: %g"%(epoch, train_accuracy))
-    optimization_algorithm.run(feed_dict = {X:X_train\
-                                                    , Y:y_train})
+        print("epoch: %d, validation accuracy: %g"%(epoch, val_accuracy))
+    #if epoch%1000 == 0:
+       # print("epoch: %d, \n\nTest accuracy: %g" % (epoch, accuracy.eval(feed_dict={X: X_test, Y: y_test})))
 
-    print("\n\nTest accuracy: %g" % accuracy.eval(feed_dict={X: X_test, Y: y_test}))
+# Testing the network on the test data
+    print("\n\nTest accuracy: %g" % accuracy.eval(
+        feed_dict={X: X_test, Y: y_test,}))
+
+#Exporting model
+choice = None
+while choice == None:
+    print(': = = = = = = = = = = = = = = = = = = = = = = = = = = :')
+    choice = input('Voulez-vous exporter ce modèle ? :\ny - oui\nn - non\n')
+    if choice == 'y':
+        model_name = input('saisissez le nom de ce modèle \n')
+        export_path = os.getcwd()+"/models/"+model_name
+        print('Exporting trained model to', export_path)
+        builder = tf.saved_model.builder.SavedModelBuilder(export_path)
+        builder.save()
