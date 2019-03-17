@@ -71,19 +71,17 @@ valid_iterator = make_iterator(X_val, y_val,
     batch_size=FLAGS.batch_size)
 
 
-features = train_iterator.get_next()
-
 #Network constant initialisation
 num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 
 #Layer initialisation
 
-input_img = K.layers.Input(shape=(num_inputs,))
-encoded = K.layers.Dense(1024, activation='relu')(input_img)
+input_cv = K.layers.Input(shape=(num_inputs,))
 
+encoded = K.layers.Dense(1024, activation='relu')(input_cv)
 decoded = K.layers.Dense(num_inputs, activation='sigmoid')(encoded)
 
-autoencoder = K.Model(input_img, decoded)
+autoencoder = K.Model(input_cv, decoded)
 
 # Create training operations
 features = train_iterator.get_next()
@@ -94,8 +92,9 @@ loss= tf.losses.mean_squared_error(CVs, logits)
 optimizer=tf.train.AdamOptimizer(FLAGS.learning_rate)
 train=optimizer.minimize(loss)
 
+#Training model
 init=tf.global_variables_initializer()
-num_epoch=1000
+num_epoch=10000
 batch_size=150
 num_test_images=10
 
