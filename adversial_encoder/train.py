@@ -20,7 +20,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 #Flags definition
 flags = tf.app.flags
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('batch_size', 10, '')
+flags.DEFINE_integer('batch_size', 50, '')
 flags.DEFINE_float('learning_rate', 0.001, '')
 flags.DEFINE_integer('info_freq', 10, '')
 flags.DEFINE_integer('info_valid_freq', 5, '')
@@ -36,7 +36,7 @@ data = [df_train, df_val]
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w) for w in x])
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/100000 for w in x])
 
 X_train = df_train['TXT'].tolist()
 X_val = df_val['TXT'].tolist()
@@ -79,13 +79,9 @@ num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 #Layer initialisation
 
 input_img = K.layers.Input(shape=(num_inputs,))
-encoded = K.layers.Dense(128, activation='relu')(input_img)
-encoded = K.layers.Dense(64, activation='relu')(encoded)
-encoded = K.layers.Dense(32, activation='relu')(encoded)
+encoded = K.layers.Dense(1024, activation='relu')(input_img)
 
-decoded = K.layers.Dense(64, activation='relu')(encoded)
-decoded = K.layers.Dense(128, activation='relu')(decoded)
-decoded = K.layers.Dense(num_inputs, activation='sigmoid')(decoded)
+decoded = K.layers.Dense(num_inputs, activation='sigmoid')(encoded)
 
 autoencoder = K.Model(input_img, decoded)
 
@@ -94,12 +90,12 @@ features = train_iterator.get_next()
 CVs, labels = itemgetter('CV', 'label')(features)
 
 logits = autoencoder(CVs)
-loss=tf.reduce_mean(tf.square(logits-CVs))
+loss= tf.losses.mean_squared_error(CVs, logits)
 optimizer=tf.train.AdamOptimizer(FLAGS.learning_rate)
 train=optimizer.minimize(loss)
 
 init=tf.global_variables_initializer()
-num_epoch=30
+num_epoch=1000
 batch_size=150
 num_test_images=10
 
@@ -109,6 +105,7 @@ with tf.Session() as sess:
     for epoch in range(num_epoch):
         sess.run(train)
         loss_value = sess.run([loss])
-        print(loss_value)
+        if epoch % 100 ==0:
+            print(loss_value)
         
         
