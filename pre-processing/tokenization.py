@@ -4,6 +4,7 @@ import numpy as np
 import numpy as np
 import string
 import nltk
+import re
 
 nltk.download('stopwords')
 nltk.download('punkt')
@@ -68,7 +69,7 @@ len_max_seq = df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 train_values = df_train.loc[:,'TXT'].tolist()
 
 tokenizer = Tokenizer(num_words = num_words, filters= filters,lower =True)
-tokenizer.fit_on_texts(df_train['TXT'].tolist())
+tokenizer.fit_on_texts(train_values)
 
 #Text to sequences
 df_train.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_train.loc[:,'TXT'])
@@ -76,9 +77,9 @@ df_val.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_val.loc[:,'TXT'])
 df_test.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_test.loc[:,'TXT'])
 
 #Padding sequences
-df_train['TXT'] = pad_sequences(df_train.loc[:,'TXT'], len_max_seq).tolist()
-df_val['TXT'] = pad_sequences(df_val.loc[:,'TXT'], len_max_seq).tolist()
-df_test['TXT'] = pad_sequences(df_test.loc[:,'TXT'], len_max_seq).tolist()
+df_train['TXT'] = pad_sequences(df_train.loc[:,'TXT'], maxlen = len_max_seq).tolist()
+df_val['TXT'] = pad_sequences(df_val.loc[:,'TXT'], maxlen = len_max_seq).tolist()
+df_test['TXT'] = pad_sequences(df_test.loc[:,'TXT'], maxlen = len_max_seq).tolist()
 
 """## Export"""
 df_train.to_csv(os.path.join(data_dir, "train.csv"),index = False)
