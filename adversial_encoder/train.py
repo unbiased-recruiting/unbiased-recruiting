@@ -22,13 +22,9 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('batch_size', 10, '')
 flags.DEFINE_float('learning_rate', 0.001, '')
-flags.DEFINE_integer('initial_step', 0, '')
-flags.DEFINE_integer('final_step', 20, 'set to `-1` to train indefinitely')
 flags.DEFINE_integer('info_freq', 10, '')
 flags.DEFINE_integer('info_valid_freq', 5, '')
 flags.DEFINE_string('data_dir', '../data', '')
-flags.DEFINE_bool('fine_tune', False, '')
-
 
 #Importing train and validation datasets
 data_dir = '../data/'
@@ -78,7 +74,7 @@ valid_iterator = make_iterator(X_val, y_val,
 features = train_iterator.get_next()
 
 #Network constant initialisation
-num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()    #28x28 pixels
+num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 
 #Layer initialisation
 
