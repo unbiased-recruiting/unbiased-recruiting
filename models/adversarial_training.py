@@ -1,12 +1,11 @@
 import os
 import numpy as np
 import tensorflow as tf
-import tensorflow_hub as hub
 import pandas as pd
 
-from gender_classifier import *
-from autoencoder import *
-from utils import *
+from models.gender_classifier import *
+from models.autoencoder import *
+from models.utils import *
 
 from operator import itemgetter
 
@@ -21,7 +20,8 @@ tf.logging.set_verbosity(tf.logging.INFO)
 flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('batch_size', 50, '')
-flags.DEFINE_float('learning_rate', 0.001, '')
+flags.DEFINE_float('adversarial_learning_rate', 0.001, '')
+flags.DEFINE_float('classifier_learning_rate', 0.001, '')
 flags.DEFINE_integer('info_freq', 10, '')
 flags.DEFINE_integer('info_valid_freq', 5, '')
 flags.DEFINE_string('data_dir', '../data', '')
@@ -56,29 +56,62 @@ num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 # Create training operations
 features = train_iterator.get_next()
 CVs, labels = itemgetter('CV', 'label')(features)
+encoder=autoencoding[0]
+decoder=autoencoding[1]
+auto_encoder=autoencoding[2]
+gender_clf = gender_clf_model
 
-optimizer=tf.train.AdamOptimizer(FLAGS.learning_rate)
+
+
+
 def encoder_decoder_step(CV,label):
     with tf.GradientTape() as tape:
-        encoder=autoencoding[0]
-        decoder=autoencoding[1]
-        autoencoder=autoencoding[2]
-
         representation = encoder(CV)
-        estimated_gender=gender_clf_model(representation)
+        estimated_gender=gender_clf(representation)
         decoded_cv=decoder(representation)
 
         loss_classifier=tf.losses.softmax_cross_entropy(
             labels=label, logits=estimated_gender)
 
-        loss_autoencoder = tf.losses.mean_squared_error(CV,autoencoder(CV))
+        loss_autoencoder = tf.losses.mean_squared_error(CV, decoded_cv)
+        adversarial_loss = loss_autoencoder-Beta*loss_classifier
+        optimizer=tf.train.AdamOptimizer(FLAGS.adversarial_learning_rate)
+        gradients=tape.gradient(adversarial_loss,encoder.trainable+decoder.trainable)
+        train_op = optimizer.apply_gradients(gradients)
+        return train_op, adversarial_loss, loss_autoencoder
 
-        loss = loss_autoencoder-Beta*loss_classifier
-
-        gradients=tape.gradient(loss,autoencoder.trainable+decoder.trainable)
-
-        optimizer.apply_gradients(gradients)
 
 def classifier_step(representation,label):
-    
+    estimated_gender = gender_clf(representation)
+    clf_optimizer = tf.train.AdamOptimizer(FLAGS.classifier_learning_rate)
+    loss_classifier = tf.losses.softmax_cross_entropy(
+        labels=label, logits=estimated_gender)
+    train_optimizer = clf_optimizer.minimize(loss_classifier)
+    accuracy = tf.reduce_mean(tf.cast(tf.equal(estimated_gender, label), tf.int32))
+    return train_optimizer, accuracy
+
+#Training variables
+features = train_iterator.get_next()
+CVs, labels = itemgetter('CV', 'label')(features)
+
+train_encoder, adversarial_loss, autoencoder_loss = encoder_decoder_step(CVs, labels)
+representation = encoder(CVs)
+train_clf, clf_accuracy = classifier_step(representation,labels)
+
+
+# Adversarial Training
+num_epoch=10000
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
+    for epoch in range(num_epoch):
+        if epoch%2==0:
+            sess.run(train_encoder)
+        else:
+            sess.run(train_clf)
+        metrics = sess.run([adversarial_loss, autoencoder_loss, clf_accuracy])
+        if epoch%100==0:
+            print('adversarial loss: {}, \nautoencoder loss: {}, \nclassifier accuracy : {}'.format(metrics[0], metrics[1], metrics[2]))
+
 
