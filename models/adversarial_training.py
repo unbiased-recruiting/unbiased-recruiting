@@ -55,7 +55,7 @@ num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 
 #Place Holders
 CV_ph = K.Input(shape=(num_inputs,))
-representation_ph = K.Input(shape=(1024)) #Format of the representation
+representation_ph = K.Input(shape=(1024,)) #Format of the representation
 
 encoder=autoencoding(CV_ph, num_inputs)[0]
 decoder=autoencoding(CV_ph, num_inputs)[1]
