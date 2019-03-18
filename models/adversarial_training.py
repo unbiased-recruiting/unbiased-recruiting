@@ -75,7 +75,7 @@ def encoder_decoder_step(CV,label):
         loss_autoencoder = tf.losses.mean_squared_error(CV, decoded_cv)
         adversarial_loss = loss_autoencoder-Beta*loss_classifier
         optimizer=tf.train.AdamOptimizer(FLAGS.adversarial_learning_rate)
-        gradients=tape.gradient(adversarial_loss,tf.constant[encoder.trainable+decoder.trainable])
+        gradients=tape.gradient(adversarial_loss,tf.constant([encoder.trainable])+tf.constant([decoder.trainable]))
         train_op = optimizer.apply_gradients(gradients)
         return train_op, adversarial_loss, loss_autoencoder
 
