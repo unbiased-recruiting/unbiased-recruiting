@@ -70,7 +70,7 @@ def encoder_decoder_step(CV,label):
         decoded_cv=decoder(representation)
 
         loss_classifier=tf.losses.softmax_cross_entropy(
-            labels=label, logits=estimated_gender)
+            onehot_labels=label, logits=estimated_gender)
 
         loss_autoencoder = tf.losses.mean_squared_error(CV, decoded_cv)
         adversarial_loss = loss_autoencoder-Beta*loss_classifier
@@ -84,7 +84,7 @@ def classifier_step(representation,label):
     estimated_gender = gender_clf(representation)
     clf_optimizer = tf.train.AdamOptimizer(FLAGS.classifier_learning_rate)
     loss_classifier = tf.losses.softmax_cross_entropy(
-        labels=label, logits=estimated_gender)
+        onehot_labels=label, logits=estimated_gender)
     train_optimizer = clf_optimizer.minimize(loss_classifier)
     accuracy = tf.reduce_mean(tf.cast(tf.equal(estimated_gender, label), tf.int32))
     return train_optimizer, accuracy
