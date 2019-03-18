@@ -79,10 +79,11 @@ def autoencoding(num_inputs ):
     encoded = K.layers.Dense(1024, activation='relu')(input_cv)
     decoded = K.layers.Dense(num_inputs, activation='sigmoid')(encoded)
 
+    encoding_input = K.Input(shape=(1024,))
     encoder = K.Model(input_cv, encoded)
     autoencoder=K.Model(input_cv,decoded)
     decoded_layers=autoencoder.layers[-1]
-    decoder=K.Model(encoded, decoded_layers)
+    decoder=K.Model(encoding_input, decoded_layers(encoding_input))
 
     
     return [encoder,decoder, autoencoder]
