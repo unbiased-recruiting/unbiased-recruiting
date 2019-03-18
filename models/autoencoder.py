@@ -6,7 +6,6 @@ from ast import literal_eval
 import os
 import numpy as np
 import tensorflow as tf
-import tensorflow_hub as hub
 import pandas as pd
 
 from operator import itemgetter
