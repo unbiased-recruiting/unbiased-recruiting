@@ -3,9 +3,9 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 
-from models.gender_classifier import *
-from models.autoencoder import *
-from models.utils import *
+from gender_classifier import *
+from autoencoder import *
+from utils import *
 
 from operator import itemgetter
 
@@ -62,8 +62,6 @@ auto_encoder=autoencoding[2]
 gender_clf = gender_clf_model
 
 
-
-
 def encoder_decoder_step(CV,label):
     with tf.GradientTape() as tape:
         representation = encoder(CV)
@@ -102,6 +100,7 @@ train_clf, clf_accuracy = classifier_step(representation,labels)
 # Adversarial Training
 num_epoch=10000
 
+print("Adversarial learning ...")
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
