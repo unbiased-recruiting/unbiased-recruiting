@@ -53,13 +53,14 @@ valid_iterator = make_iterator(X_val, y_val,
 #Network constant initialisation
 num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 
-# Create training operations
-features = train_iterator.get_next()
-CVs, labels = itemgetter('CV', 'label')(features)
-encoder=autoencoding[0]
-decoder=autoencoding[1]
-auto_encoder=autoencoding[2]
-gender_clf = gender_clf_model
+#Place Holders
+CV_ph = K.Input(shape=(num_inputs,))
+representation_ph = K.Input(shape=(1024)) #Format of the representation
+
+encoder=autoencoding(CV_ph)[0]
+decoder=autoencoding(CV_ph)[1]
+auto_encoder=autoencoding(CV_ph)[2]
+gender_clf = gender_clf_model(representation_ph)
 
 
 def encoder_decoder_step(CV,label):

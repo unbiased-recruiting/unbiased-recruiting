@@ -71,15 +71,12 @@ K = tf.keras
 
 
 # #Network constant initialisation
-# num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
+#num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 
 #Layer initialisation
-def autoencoding(num_inputs):
-    input_cv = K.layers.Input(shape=(num_inputs,))
-
+def autoencoding(input_cv):
     encoded = K.layers.Dense(1024, activation='relu')(input_cv)
-    decoded = K.layers.Dense(num_inputs, activation='sigmoid')(encoded)
-
+    decoded = K.layers.Dense(len(input_cv[0]), activation='sigmoid')(encoded)
     encoder = K.Model(input_cv, encoded)
     autoencoder=K.Model(input_cv,decoded)
     decoded_layers=autoencoder.layers[-1]
