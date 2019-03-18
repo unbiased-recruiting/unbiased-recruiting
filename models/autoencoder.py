@@ -74,7 +74,8 @@ K = tf.keras
 #num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 
 #Layer initialisation
-def autoencoding(input_cv, num_inputs ):
+def autoencoding(num_inputs ):
+    input_cv = K.Input(shape=(num_inputs,))
     encoded = K.layers.Dense(1024, activation='relu')(input_cv)
     decoded = K.layers.Dense(num_inputs, activation='sigmoid')(encoded)
 

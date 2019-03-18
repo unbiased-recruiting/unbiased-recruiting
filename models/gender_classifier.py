@@ -8,12 +8,11 @@ from operator import itemgetter
 K = tf.keras
 
 
-def gender_clf_model(representation):
-
+def gender_clf_model(encoding_dim):
+    representation = K.Input(shape=(encoding_dim,))
     hidden_layer=K.layers.Dense(512, activation='relu')(representation)
     output_gender=K.layers.Dense(shape=(2,), activation='sigmoid')(hidden_layer)
 
     gender_clf = K.Model(representation, output_gender)
-
     
     return gender_clf
