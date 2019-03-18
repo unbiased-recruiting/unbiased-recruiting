@@ -57,9 +57,9 @@ num_inputs= df_train.apply(lambda x: len(x['TXT']), axis = 1).max()
 CV_ph = K.Input(shape=(num_inputs,))
 representation_ph = K.Input(shape=(1024)) #Format of the representation
 
-encoder=autoencoding(CV_ph)[0]
-decoder=autoencoding(CV_ph)[1]
-auto_encoder=autoencoding(CV_ph)[2]
+encoder=autoencoding(CV_ph, num_inputs)[0]
+decoder=autoencoding(CV_ph, num_inputs)[1]
+auto_encoder=autoencoding(CV_ph, num_inputs)[2]
 gender_clf = gender_clf_model(representation_ph)
 
 
