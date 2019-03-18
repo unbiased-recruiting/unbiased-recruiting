@@ -36,7 +36,7 @@ data = [df_train, df_val]
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/100000 for w in x])
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/10000 for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
 
 X_train = df_train['TXT'].tolist()
 X_val = df_val['TXT'].tolist()
@@ -95,12 +95,10 @@ train=optimizer.minimize(loss)
 #Training model
 init=tf.global_variables_initializer()
 num_epoch=10000
-batch_size=150
-num_test_images=10
 
 with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())
+    sess.run(init)
+    sess.run(init)
     for epoch in range(num_epoch):
         sess.run(train)
         loss_value = sess.run([loss])
