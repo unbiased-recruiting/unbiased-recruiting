@@ -61,6 +61,8 @@ df_train_init, df_test = train_test_split(df, test_size = 0.25)
 #Second split of train dataframe into train and val dataframes
 df_train, df_val = train_test_split(df_train_init, test_size = 0.25)
 
+datasets  = [df_train, df_val, df_test]
+
 """## Tokenization"""
 #Tokenizer training 
 num_words = 10000
@@ -71,15 +73,10 @@ train_values = df_train.loc[:,'TXT'].tolist()
 tokenizer = Tokenizer(num_words = num_words, filters= filters,lower =True)
 tokenizer.fit_on_texts(train_values)
 
-#Text to sequences
-df_train.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_train.loc[:,'TXT'])
-df_val.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_val.loc[:,'TXT'])
-df_test.loc[:,'TXT'] = tokenizer.texts_to_sequences(df_test.loc[:,'TXT'])
-
-#Padding sequences
-df_train['TXT'] = pad_sequences(df_train.loc[:,'TXT'], maxlen = len_max_seq).tolist()
-df_val['TXT'] = pad_sequences(df_val.loc[:,'TXT'], maxlen = len_max_seq).tolist()
-df_test['TXT'] = pad_sequences(df_test.loc[:,'TXT'], maxlen = len_max_seq).tolist()
+#Text to padded sequences
+for df in datasets:
+  df['TXT'] = tokenizer.texts_to_sequences(df.loc[:,'TXT'])
+  df['TXT'] = pad_sequences(df.loc[:,'TXT'], maxlen = len_max_seq).tolist()
 
 """## Export"""
 df_train.to_csv(os.path.join(data_dir, "train.csv"),index = False)
