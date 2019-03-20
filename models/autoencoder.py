@@ -93,16 +93,23 @@ num_inputs= len(df_train.loc[0, 'TXT'])
 
 #Layer initialisation
 
-def model_builder(input_cv,  compression_size, num_inputs):
+def model_builder(input_cv,  compression_size, num_inputs, type = 'MLP'):
     #autoencoder
-    encoded = K.layers.Dense(compression_size, activation = 'relu')(input_cv)
-    decoded = K.layers.Dense(num_inputs, activation = 'sigmoid')(encoded)
-    autoencoder = K.Model(input_cv, decoded, name = "autoencoder")
-    encoder = K.Model(input_cv, encoded, name = "encoder")
-    encoded_input = K.layers.Input(shape = (compression_size,), name = "encoder_input")
-    decoded_layer = autoencoder.layers[-1]
-    decoder = K.Model(encoded_input, decoded_layer(encoded_input))
+    if type == 'MLP':
+        print('MLP architecture')
+        encoded = K.layers.Dense(compression_size, activation = 'relu')(input_cv)
+        decoded = K.layers.Dense(num_inputs, activation = 'sigmoid')(encoded)
+        autoencoder = K.Model(input_cv, decoded, name = "autoencoder")
+        encoder = K.Model(input_cv, encoded, name = "encoder")
+        encoded_input = K.layers.Input(shape = (compression_size,), name = "encoder_input")
+        decoded_layer = autoencoder.layers[-1]
+        decoder = K.Model(encoded_input, decoded_layer(encoded_input))
 
+    if type == 'LSTM':
+        print('LSTM architecture')
+
+    else:
+        print('Problem occured when specifying AutoEncoder Type of architecture')
     #gender_clf
     clf = K.layers.Dense(compression_size, activation = 'relu')(encoded_input)
     outputs = K.layers.Dense(units=2)(clf)
@@ -123,13 +130,16 @@ print("autoencoder")
 autoencoder.summary()
 # ====================== Defining training operations =======================
 
-num_epoch= 5000
+num_epoch= 5
 autoencoder_learning_rates = [0.1,0.01,0.001,0.0001,0.00001]
 clf_learning_rates = [0.0001,0.00001,0.001,0.01]
 beta_values = [0.01,1,0.1,10,100,1000]
 
 # Manual grid search
 
+test_accuracies = []
+test_losses = []
+model_params = []
 for AE_lr in autoencoder_learning_rates:
     for clf_lr in clf_learning_rates:
         for beta in beta_values:
@@ -231,7 +241,8 @@ for AE_lr in autoencoder_learning_rates:
                         sess.run(test_clf_accuracy_op)
                     except tf.errors.OutOfRangeError:
                         break
-
+                test_accuracies.append(test_clf_accuracy)
+                test_losses.append(test_loss)
                 test_accuracy_value = sess.run(test_clf_accuracy)
                 print('TEST AE loss : ', test_loss)
                 print('TEST clf accuracy : {}'.format(test_accuracy_value))
@@ -250,4 +261,7 @@ for AE_lr in autoencoder_learning_rates:
 
             results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
             results.to_csv(os.path.join(saving_path+hyparam_name+'_results.csv'))
+            model_params.append(hyparam_name)
 
+test_results = pd.DataFrame({'Parameters': hyparam_name, "test loss": test_losses, "test_accuracy": test_accuracies})
+test_results.to_csv(os.path.join(saving_path,'test_results.csv'))
