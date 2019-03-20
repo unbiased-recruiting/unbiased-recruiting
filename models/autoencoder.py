@@ -144,21 +144,40 @@ CVs, labels = itemgetter('CV', 'label')(features)
 
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
 autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
-# ====================== Defining training operations =======================
+# ====================== Training Model =======================
 
 #Training model
 init=tf.global_variables_initializer()
-num_epoch=10000
+num_epoch=200
+
+adversarial_losses = []
+clf_accuracies = []
 with tf.Session() as sess:
     sess.run(init)
     for epoch in range(num_epoch):
         if epoch % 2 == 0:
             sess.run(autoencoder_train)
+            loss_value = sess.run(autoencoder_loss)
+            adversarial_losses.append(loss_value)
             if epoch %100 ==0:
-                loss_value = sess.run(autoencoder_loss)
                 print("autoencoder loss", loss_value)
         else:
             sess.run(clf_train)
+            accuracy = sess.run(clf_accuracy)
+            clf_accuracies.append(accuracy)
             if (epoch - 1)%100 == 0:
                 accuracy = sess.run(clf_accuracy)
                 print("accuracy", accuracy)
+
+
+print(adversarial_losses)
+print(clf_accuracies)
+
+# ====================== Exporting model =======================
+
+# serialize weights to HDF5
+saving_path = './saved_models'
+encoder.save_weights(os.path.join(saving_path, "encoder.h5"))
+print("Encoder saved")
+encoder.save_weights(os.path.join(saving_path, "decoder.h5"))
+print("Decoder saved")
