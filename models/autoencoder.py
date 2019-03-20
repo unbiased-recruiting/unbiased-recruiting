@@ -45,7 +45,7 @@ print('Preprocessing Data...')
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/vocab_len for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w) for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
@@ -242,7 +242,7 @@ for AE_lr in autoencoder_learning_rates:
 
             # serialize weights to HDF5
             saving_path = './saved_models/'
-            hyparam_name = str('NORMALIZED_AElr_'+ str(AE_lr)+'_CLFlr_'+str(clf_lr)+'_beta_'+str(beta))
+            hyparam_name = str('AElr_'+ str(AE_lr)+'_CLFlr_'+str(clf_lr)+'_beta_'+str(beta))
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"encoder.h5"))
             print("Encoder saved")
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"decoder.h5"))
