@@ -233,7 +233,7 @@ for AE_lr in autoencoder_learning_rates:
 
                 test_accuracy_value = sess.run(test_clf_accuracy)
                 print('TEST AE loss : ', test_loss)
-                print('TEST clf loss : {}'.format(test_accuracy_value))
+                print('TEST clf accuracy : {}'.format(test_accuracy_value))
 
             print('Session successfully closed !')
 
