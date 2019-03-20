@@ -7,6 +7,8 @@ import os
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+import matplotlib.pyplot as plt
+import sys
 
 from operator import itemgetter
 
@@ -124,10 +126,11 @@ autoencoder.summary()
 #Defining training operations
 def autoencoder_step(input_cv, clf_loss, Beta):
     logits = autoencoder(input_cv)
-    loss = tf.losses.mean_squared_error(input_cv, logits) - Beta*clf_loss
+    autoencoder_loss=tf.losses.mean_squared_error(input_cv, logits)
+    loss = autoencoder_loss - Beta*clf_loss
     optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
     train = optimizer.minimize(loss) 
-    return train, loss
+    return train, loss, autoencoder_loss
 
 def clf_step(encoded_input, label, dataset = 'train'):
     logits = gender_clf(encoded_input)
@@ -149,8 +152,7 @@ train_features = train_iterator.get_next()
 CVs, labels = itemgetter('CV', 'label')(train_features)
 
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
-autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
-
+autoencoder_train, adversarial_loss, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
 # ====================== Training Model =======================
 
 # Create validation operations
@@ -158,7 +160,7 @@ val_features = valid_iterator.get_next()
 val_CVs, val_labels = itemgetter('CV', 'label')(val_features)
 
 val_clf, val_clf_loss, clf_valid_accuracy, clf_valid_accuracy_op = clf_step(encoder(val_CVs), val_labels, 'valid')
-val_autoencoder_train, val_autoencoder_loss = autoencoder_step(val_CVs,val_clf_loss, FLAGS.beta)
+val_autoencoder_train, val_adversarial_loss, val_autoencoder_loss = autoencoder_step(val_CVs,val_clf_loss, FLAGS.beta)
 
 valid_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='valid_accuracy') # to measure validation accuracy during training
 valid_running_vars_initializer = tf.variables_initializer(var_list=valid_running_vars)
@@ -168,7 +170,7 @@ test_features = test_iterator.get_next()
 test_CVs, test_labels = itemgetter('CV', 'label')(test_features)
 
 test_clf, test_clf_loss, test_clf_accuracy, test_clf_accuracy_op = clf_step(encoder(test_CVs), test_labels, 'test')
-test_autoencoder_train, test_autoencoder_loss = autoencoder_step(test_CVs,test_clf_loss, FLAGS.beta)
+test_autoencoder_train, test_adversarial_loss, test_autotencoder_loss = autoencoder_step(test_CVs,test_clf_loss, FLAGS.beta)
 
 test_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='test_accuracy') # to measure validation accuracy during training
 test_running_vars_initializer = tf.variables_initializer(var_list=test_running_vars)
@@ -182,40 +184,47 @@ num_epoch= 1000
 
 adversarial_losses = []
 clf_accuracies = []
+autoencoder_losses=[]
+even_epoch=[]
+uneven_epoch=[]
 with tf.Session() as sess:
     sess.run(init)
     for epoch in range(num_epoch):
-            if epoch % FLAGS.info_freq == 0:
-                loss_value = sess.run(autoencoder_loss)
-                adversarial_losses.append(loss_value)
-                print("epoch: {} , autoencoder loss during training : {}".format(epoch, loss_value))
+        if epoch % FLAGS.info_freq == 0:
+            loss_value = sess.run(adversarial_loss)
+            adversarial_losses.append(loss_value)
+            autoencoder_loss_value=sess.run(autoencoder_loss)
+            autoencoder_losses.append(autoencoder_loss_value)
+            even_epoch.append(epoch)
+            print("epoch: {} , autoencoder loss during training : {}".format(epoch, loss_value))
 
-            else:
-                sess.run(clf_train)
-                if (epoch - 1)%FLAGS.info_freq == 0:
-                    accuracy = sess.run(clf_accuracy)
-                    clf_accuracies.append(accuracy)
-                    print("epoch: {} , classifier accuracy during training".format(epoch, accuracy))
+        else:
+            sess.run(clf_train)
+            if (epoch - 1)%FLAGS.info_freq == 0:
+                accuracy = sess.run(clf_accuracy)
+                clf_accuracies.append(accuracy)
+                uneven_epoch.append(epoch)
+                print("epoch: {} , classifier accuracy during training".format(epoch, accuracy))
 
-                # validation
-                if (epoch-1) % FLAGS.info_valid_freq == 0:
-                    sess.run(valid_running_vars_initializer)  # reinitialize accuracy
-                    sess.run(valid_iterator.initializer)
-                    while True:
-                        try:
-                            valid_loss = sess.run(val_autoencoder_loss)
-                            sess.run(clf_valid_accuracy_op)
-                        except tf.errors.OutOfRangeError:
-                            break
-                    valid_accuracy_value = sess.run(clf_valid_accuracy)
-                    print('epoch: {} , validation_accuracy of classifier: {}'.format(epoch, valid_accuracy_value))
-                    print('validation loss of autoencoder : ', valid_loss)
+            # validation
+            if (epoch-1) % FLAGS.info_valid_freq == 0:
+                sess.run(valid_running_vars_initializer)  # reinitialize accuracy
+                sess.run(valid_iterator.initializer)
+                while True:
+                    try:
+                        valid_loss = sess.run(val_adversarial_loss)
+                        sess.run(clf_valid_accuracy_op)
+                    except tf.errors.OutOfRangeError:
+                        break
+                valid_accuracy_value = sess.run(clf_valid_accuracy)
+                print('epoch: {} , validation_accuracy of classifier: {}'.format(epoch, valid_accuracy_value))
+                print('validation loss of autoencoder : ', valid_loss)
     # test
     sess.run(test_running_vars_initializer)  # reinitialize accuracy
     sess.run(test_iterator.initializer)
     while True:
         try:
-            test_loss = sess.run(test_autoencoder_loss)
+            test_loss = sess.run(test_adversarial_loss)
             sess.run(test_clf_accuracy_op)
         except tf.errors.OutOfRangeError:
             break
@@ -223,6 +232,36 @@ with tf.Session() as sess:
     test_accuracy_value = sess.run(test_clf_accuracy)
     print('test loss of autoencoder : ', test_loss)
     print('test_accuracy for classifier : {}'.format(test_accuracy_value))
+
+
+if len(sys.argv)>1 and str(sys.argv[1])=='plot':
+    plt.figure(1, figsize=(10,15))
+    plt.subplot(3,1,1)
+    plt.plot(even_epoch, adversarial_losses, color="red")
+    plt.title("Adversarial Loss vs Epochs")
+    plt.xlabel("Number of epoch")
+    plt.ylabel("Adversarial Loss")
+    plt.subplot(3,1,2)
+    plt.plot(even_epoch, autoencoder_losses, color="green")
+    plt.title("Autoencoder Loss vs Epochs")
+    plt.xlabel("Number of epoch")
+    plt.ylabel("Autoencoder Loss")
+    plt.subplot(3,1,3)
+    plt.plot(uneven_epoch, clf_accuracies, color="orange")
+    plt.title("Classifier Accuracy vs Epochs")
+    plt.xlabel("Number of epoch")
+    plt.ylabel("Classifier accuracy")
+    name="losses and accuracy vs epochs for Beta={Beta}, batch_size={batch_size}, learning_rate={learning_rate}.png".format(Beta=FLAGS.beta, batch_size=FLAGS.batch_size, learning_rate=FLAGS.learning_rate)
+    plt.savefig("graphs/"+name)
+
+
+    plt.figure(2)
+    plt.plot(clf_accuracies,autoencoder_losses)
+    plt.title("Autoencoder Loss vs Classifier Accuracy")
+    plt.xlabel("Classifier accuracy")
+    plt.ylabel("Autoencoder Loss")
+    plt.savefig("graphs/autoencoder loss vs classifier accuracy for Beta={Beta}, batch_size={batch_size}, learning_rate={learning_rate}.png".format(Beta=FLAGS.beta, batch_size=FLAGS.batch_size, learning_rate=FLAGS.learning_rate))
+
 
 print('Session successfully closed !')
 
