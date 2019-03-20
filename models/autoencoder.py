@@ -29,7 +29,6 @@ flags.DEFINE_string('data_dir', '../data', '')
 #flags.DEFINE_float('learning_rate', 0.001, '')
 #flags.DEFINE_float('classifier_learning_rate', 0.001, '')
 #flags.DEFINE_float('beta', 10, '')
-saving_path = './saved_models/'
 
 # ====================== Loading settings =======================
 
@@ -46,7 +45,9 @@ print('Preprocessing Data...')
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w) for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/10000 for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
+
+saving_path = './saved_models/normalized/'
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
