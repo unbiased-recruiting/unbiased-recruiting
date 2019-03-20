@@ -111,5 +111,8 @@ train.csv
 val.csv
 test.csv
 
+#Models and results
+*.h5
+*.csv
 
 /
