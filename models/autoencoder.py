@@ -122,7 +122,7 @@ print("autoencoder")
 autoencoder.summary()
 # ====================== Defining training operations =======================
 
-num_epoch= 5000
+num_epoch= 5#5000
 autoencoder_learning_rates = [0.1,0.01,0.001,0.0001,0.00001]
 clf_learning_rates = [0.0001,0.00001,0.001,0.01]
 beta_values = [0.01,1,0.1,10,100,1000]
@@ -241,7 +241,7 @@ for AE_lr in autoencoder_learning_rates:
 
             # serialize weights to HDF5
             saving_path = './saved_models'
-            hyparam_name = str('AElr'+ AE_lr+'_CLFlr'+clf_lr+'_beta'+beta)
+            hyparam_name = str('AElr'+ str(AE_lr)+'_CLFlr'+str(clf_lr)+'_beta'+str(beta))
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"encoder.h5"))
             print("Encoder saved")
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"decoder.h5"))
