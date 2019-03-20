@@ -15,9 +15,9 @@ from operator import itemgetter
 K = tf.keras
 # ====================== Preliminary settings =======================
 
-
-np.random.seed(34) # to make the results reproductible
-tf.random.set_random_seed(35) # to make the results reproductible 
+# fix random seed for reproducibility
+np.random.seed(34)
+tf.random.set_random_seed(35)
 tf.logging.set_verbosity(tf.logging.INFO)
 
 #Flags definition
@@ -25,22 +25,23 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('batch_size', 50, '')
 flags.DEFINE_float('learning_rate', 0.001, '')
-flags.DEFINE_integer('info_freq', 10, '')
-flags.DEFINE_integer('info_valid_freq', 5, '')
+flags.DEFINE_integer('info_freq', 100, '')
+flags.DEFINE_integer('info_valid_freq', 50, '')
 flags.DEFINE_string('data_dir', '../data', '')
 flags.DEFINE_float('classifier_learning_rate', 0.001, '')
 flags.DEFINE_float('beta', 10, '')
 
 # ====================== Loading settings =======================
 
-
+print('Loading Data...')
 #Importing train and validation datasets
 data_dir = '../data/'
 df_train = pd.read_csv(os.path.join(data_dir, "train.csv"))
 df_val = pd.read_csv(os.path.join(data_dir, "val.csv"))
+df_test = pd.read_csv(os.path.join(data_dir, "test.csv"))
 
-data = [df_train, df_val]
-
+data = [df_train, df_val, df_test]
+print('Preprocessing Data...')
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
@@ -48,18 +49,14 @@ for df in data:
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
-
-print(X_train.shape)
+X_test = np.array(df_test['TXT'].tolist(), dtype = np.float32)
 
 
 y_train = df_train[['GENRE_1.0', 'GENRE_2.0']].values
 y_val = df_val[['GENRE_1.0', 'GENRE_2.0']].values
+y_test = df_test[['GENRE_1.0', 'GENRE_2.0']].values
 
-#y_train = df_train[['GENRE_1.0', 'GENRE_2.0']].apply(lambda x : 0 if x['GENRE_1.0'] == 0 else 1, axis =1 ).values
-#y_val = df_val[['GENRE_1.0', 'GENRE_2.0']].apply(lambda x : 0 if x['GENRE_1.0'] == 0 else 1, axis =1 ).values
 
-print(y_train)
-print(y_train.shape)
 # Create three `tf.data.Iterator` objects
 
 def make_iterator(CVs, labels, batch_size, shuffle_and_repeat=False):
@@ -81,9 +78,12 @@ def make_iterator(CVs, labels, batch_size, shuffle_and_repeat=False):
     else:
         return dataset.make_initializable_iterator()
 
+print('Building Iterators...')
 train_iterator = make_iterator(X_train, y_train,
     batch_size=FLAGS.batch_size, shuffle_and_repeat=True)
 valid_iterator = make_iterator(X_val, y_val,
+    batch_size=FLAGS.batch_size)
+test_iterator = make_iterator(X_test, y_test,
     batch_size=FLAGS.batch_size)
 
 # ====================== Network architecture =======================
@@ -109,6 +109,7 @@ def model_builder(input_cv,  compression_size, num_inputs):
     gender_clf = K.Model(encoded_input, outputs, name =  'clf')
     return autoencoder, encoder, decoder, gender_clf
 
+print('Building Models...')
 #Autoencoder layers
 input_cv = K.layers.Input(shape=(num_inputs,), name = "input_cv")
 
@@ -131,27 +132,55 @@ def autoencoder_step(input_cv, clf_loss, Beta):
     train = optimizer.minimize(loss) 
     return train, loss, autoencoder_loss
 
-def clf_step(encoded_input, label):
+def clf_step(encoded_input, label, dataset = 'train'):
     logits = gender_clf(encoded_input)
     prediction = tf.argmax(logits,1)
     truth_label = tf.argmax(label,1)
     clf_optimizer = tf.train.AdamOptimizer(FLAGS.classifier_learning_rate)
     loss = tf.losses.softmax_cross_entropy(onehot_labels=label, logits=logits)
     train = clf_optimizer.minimize(loss)
-    accuracy = tf.reduce_mean(tf.cast(tf.equal(truth_label, prediction), tf.float32))
-    return train, loss, accuracy
+    if dataset != 'train' :
+        name=str(dataset+'_accuracy')
+        accuracy, accuracy_op = tf.metrics.accuracy(truth_label, prediction, name=name)
+        return train, loss, accuracy, accuracy_op
+    else:
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(truth_label, prediction), tf.float32))
+        return train, loss, accuracy
 
 # Create training operations
-features = train_iterator.get_next()
-CVs, labels = itemgetter('CV', 'label')(features)
+train_features = train_iterator.get_next()
+CVs, labels = itemgetter('CV', 'label')(train_features)
 
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
 autoencoder_train, adversarial_loss, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
 # ====================== Training Model =======================
 
+# Create validation operations
+val_features = valid_iterator.get_next()
+val_CVs, val_labels = itemgetter('CV', 'label')(val_features)
+
+val_clf, val_clf_loss, clf_valid_accuracy, clf_valid_accuracy_op = clf_step(encoder(val_CVs), val_labels, 'valid')
+val_autoencoder_train, val_adversarial_loss, val_autoencoder_loss = autoencoder_step(val_CVs,val_clf_loss, FLAGS.beta)
+
+valid_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='valid_accuracy') # to measure validation accuracy during training
+valid_running_vars_initializer = tf.variables_initializer(var_list=valid_running_vars)
+
+# Create Test Operations
+test_features = test_iterator.get_next()
+test_CVs, test_labels = itemgetter('CV', 'label')(test_features)
+
+test_clf, test_clf_loss, test_clf_accuracy, test_clf_accuracy_op = clf_step(encoder(test_CVs), test_labels, 'test')
+test_autoencoder_train, test_adversarial_loss, test_autotencoder_loss = autoencoder_step(test_CVs,test_clf_loss, FLAGS.beta)
+
+test_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='test_accuracy') # to measure validation accuracy during training
+test_running_vars_initializer = tf.variables_initializer(var_list=test_running_vars)
+
+
+# ====================== Defining training operations =======================
+print('Training Models...')
 #Training model
 init=tf.global_variables_initializer()
-num_epoch=200
+num_epoch= 1000
 
 adversarial_losses = []
 clf_accuracies = []
@@ -161,23 +190,49 @@ uneven_epoch=[]
 with tf.Session() as sess:
     sess.run(init)
     for epoch in range(num_epoch):
-        if epoch % 2 == 0:
-            sess.run(autoencoder_train)
+        if epoch % FLAGS.info_freq == 0:
             loss_value = sess.run(adversarial_loss)
             adversarial_losses.append(loss_value)
             autoencoder_loss_value=sess.run(autoencoder_loss)
             autoencoder_losses.append(autoencoder_loss_value)
             even_epoch.append(epoch)
-            if epoch %100 ==0:
-                print("autoencoder loss", loss_value)
+            print("epoch: {} , autoencoder loss during training : {}".format(epoch, loss_value))
+
         else:
             sess.run(clf_train)
-            accuracy = sess.run(clf_accuracy)
-            clf_accuracies.append(accuracy)
-            uneven_epoch.append(epoch)
-            if (epoch - 1)%100 == 0:
+            if (epoch - 1)%FLAGS.info_freq == 0:
                 accuracy = sess.run(clf_accuracy)
-                print("accuracy", accuracy)
+                clf_accuracies.append(accuracy)
+                uneven_epoch.append(epoch)
+                print("epoch: {} , classifier accuracy during training".format(epoch, accuracy))
+
+            # validation
+            if (epoch-1) % FLAGS.info_valid_freq == 0:
+                sess.run(valid_running_vars_initializer)  # reinitialize accuracy
+                sess.run(valid_iterator.initializer)
+                while True:
+                    try:
+                        valid_loss = sess.run(val_adversarial_loss)
+                        sess.run(clf_valid_accuracy_op)
+                    except tf.errors.OutOfRangeError:
+                        break
+                valid_accuracy_value = sess.run(clf_valid_accuracy)
+                print('epoch: {} , validation_accuracy of classifier: {}'.format(epoch, valid_accuracy_value))
+                print('validation loss of autoencoder : ', valid_loss)
+    # test
+    sess.run(test_running_vars_initializer)  # reinitialize accuracy
+    sess.run(test_iterator.initializer)
+    while True:
+        try:
+            test_loss = sess.run(test_adversarial_loss)
+            sess.run(test_clf_accuracy_op)
+        except tf.errors.OutOfRangeError:
+            break
+
+    test_accuracy_value = sess.run(test_clf_accuracy)
+    print('test loss of autoencoder : ', test_loss)
+    print('test_accuracy for classifier : {}'.format(test_accuracy_value))
+
 
 if len(sys.argv)>1 and str(sys.argv[1])=='plot':
     plt.figure(1, figsize=(10,15))
@@ -207,8 +262,8 @@ if len(sys.argv)>1 and str(sys.argv[1])=='plot':
     plt.ylabel("Autoencoder Loss")
     plt.savefig("graphs/autoencoder loss vs classifier accuracy for Beta={Beta}, batch_size={batch_size}, learning_rate={learning_rate}.png".format(Beta=FLAGS.beta, batch_size=FLAGS.batch_size, learning_rate=FLAGS.learning_rate))
 
-print(adversarial_losses)
-print(clf_accuracies)
+
+print('Session successfully closed !')
 
 # ====================== Exporting model =======================
 
@@ -218,3 +273,4 @@ encoder.save_weights(os.path.join(saving_path, "encoder.h5"))
 print("Encoder saved")
 encoder.save_weights(os.path.join(saving_path, "decoder.h5"))
 print("Decoder saved")
+
