@@ -247,3 +247,6 @@ for AE_lr in autoencoder_learning_rates:
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"decoder.h5"))
             print("Decoder saved")
 
+            results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
+            results.to_csv(saving_path+hyparam_name+'.csv')
+
