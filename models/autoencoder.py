@@ -40,11 +40,12 @@ df_val = pd.read_csv(os.path.join(data_dir, "val.csv"))
 df_test = pd.read_csv(os.path.join(data_dir, "test.csv"))
 
 data = [df_train, df_val, df_test]
+vocab_len = 10000 # Determined during preprocessing
 print('Preprocessing Data...')
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w) for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/vocab_len for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
