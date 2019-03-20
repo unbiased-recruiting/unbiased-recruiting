@@ -86,14 +86,11 @@ valid_iterator = make_iterator(X_val, y_val,
 
 
 def deduce_class(predictions, threshold=0.5):
-    if predictions[0] < threshold:
-        predictions[0]=0
-    else:
-        predictions[0]=1
-    if predictions[1] < threshold:
-        predictions[1]=0
-    else:
-        predictions[1]=1
+    for i in range(len(predictions)):
+        if predictions[i]<threshold:
+            predictions[i]=0
+        else:
+            predictions[i]=1
     return predictions
 
 # ====================== Network architecture =======================
