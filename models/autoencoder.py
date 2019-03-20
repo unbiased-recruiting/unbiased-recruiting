@@ -27,6 +27,7 @@ flags.DEFINE_integer('info_freq', 10, '')
 flags.DEFINE_integer('info_valid_freq', 5, '')
 flags.DEFINE_string('data_dir', '../data', '')
 flags.DEFINE_float('classifier_learning_rate', 0.001, '')
+flags.DEFINE_float('beta', 10, '')
 
 # ====================== Loading settings =======================
 
@@ -41,7 +42,7 @@ data = [df_train, df_val]
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/10000 for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w) for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
@@ -122,7 +123,7 @@ autoencoder.summary()
 #Defining training operations
 def autoencoder_step(input_cv, clf_loss, Beta):
     logits = autoencoder(input_cv)
-    loss = tf.losses.mean_squared_error(input_cv, logits) + Beta*clf_loss
+    loss = tf.losses.mean_squared_error(input_cv, logits) - Beta*clf_loss
     optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
     train = optimizer.minimize(loss) 
     return train, loss
@@ -142,7 +143,7 @@ features = train_iterator.get_next()
 CVs, labels = itemgetter('CV', 'label')(features)
 
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
-autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, 0.0001)
+autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
 # ====================== Defining training operations =======================
 
 #Training model
