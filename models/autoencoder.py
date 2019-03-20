@@ -45,9 +45,9 @@ print('Preprocessing Data...')
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w) for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/10000 for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
 
-saving_path = './saved_models/'
+saving_path = './saved_models/normalized/'
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
@@ -149,7 +149,7 @@ for batch_size in batch_sizes:
                                       batch_size=batch_size)
         for clf_lr in clf_learning_rates:
             for beta in beta_values:
-                hyparam_name = str('batchsize_'+batch_size+'AElr_'+ str(AE_lr)+'_CLFlr_'+str(clf_lr)+'_beta_'+str(beta))
+                hyparam_name = str('batchsize_'+str(batch_size)+'AElr_'+ str(AE_lr)+'_CLFlr_'+str(clf_lr)+'_beta_'+str(beta))
                 model_params.append(hyparam_name)
                 print('(batch_size, AE_learning_rate, clf_learning_rate, beta) = ({} ; {} ; {} ;{})'.format(batch_size,AE_lr, clf_lr, beta))
                 #Defining training operations
