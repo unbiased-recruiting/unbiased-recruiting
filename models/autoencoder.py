@@ -241,13 +241,13 @@ for AE_lr in autoencoder_learning_rates:
             # ====================== Exporting model =======================
 
             # serialize weights to HDF5
-            saving_path = './saved_models'
-            hyparam_name = str('AElr'+ str(AE_lr)+'_CLFlr'+str(clf_lr)+'_beta'+str(beta))
+            saving_path = './saved_models/'
+            hyparam_name = str('NORMALIZED_AElr'+ str(AE_lr)+'_CLFlr'+str(clf_lr)+'_beta'+str(beta))
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"encoder.h5"))
             print("Encoder saved")
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"decoder.h5"))
             print("Decoder saved")
 
             results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
-            results.to_csv(saving_path+hyparam_name+'.csv')
+            results.to_csv(os.path.join(saving_path+hyparam_name+'.csv'))
 
