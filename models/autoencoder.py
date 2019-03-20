@@ -23,8 +23,8 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('batch_size', 50, '')
 flags.DEFINE_float('learning_rate', 0.001, '')
-flags.DEFINE_integer('info_freq', 10, '')
-flags.DEFINE_integer('info_valid_freq', 5, '')
+flags.DEFINE_integer('info_freq', 100, '')
+flags.DEFINE_integer('info_valid_freq', 50, '')
 flags.DEFINE_string('data_dir', '../data', '')
 flags.DEFINE_float('classifier_learning_rate', 0.001, '')
 flags.DEFINE_float('beta', 10, '')
@@ -36,8 +36,9 @@ flags.DEFINE_float('beta', 10, '')
 data_dir = '../data/'
 df_train = pd.read_csv(os.path.join(data_dir, "train.csv"))
 df_val = pd.read_csv(os.path.join(data_dir, "val.csv"))
+df_test = pd.read_csv(os.path.join(data_dir, "test.csv"))
 
-data = [df_train, df_val]
+data = [df_train, df_val, df_test]
 
 #Converting TXT column from str to array
 for df in data:
@@ -46,18 +47,14 @@ for df in data:
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
-
-print(X_train.shape)
+X_test = np.array(df_test['TXT'].tolist(), dtype = np.float32)
 
 
 y_train = df_train[['GENRE_1.0', 'GENRE_2.0']].values
 y_val = df_val[['GENRE_1.0', 'GENRE_2.0']].values
+y_test = df_test[['GENRE_1.0', 'GENRE_2.0']].values
 
-#y_train = df_train[['GENRE_1.0', 'GENRE_2.0']].apply(lambda x : 0 if x['GENRE_1.0'] == 0 else 1, axis =1 ).values
-#y_val = df_val[['GENRE_1.0', 'GENRE_2.0']].apply(lambda x : 0 if x['GENRE_1.0'] == 0 else 1, axis =1 ).values
 
-print(y_train)
-print(y_train.shape)
 # Create three `tf.data.Iterator` objects
 
 def make_iterator(CVs, labels, batch_size, shuffle_and_repeat=False):
@@ -82,6 +79,8 @@ def make_iterator(CVs, labels, batch_size, shuffle_and_repeat=False):
 train_iterator = make_iterator(X_train, y_train,
     batch_size=FLAGS.batch_size, shuffle_and_repeat=True)
 valid_iterator = make_iterator(X_val, y_val,
+    batch_size=FLAGS.batch_size)
+test_iterator = make_iterator(X_test, y_test,
     batch_size=FLAGS.batch_size)
 
 # ====================== Network architecture =======================
@@ -128,22 +127,38 @@ def autoencoder_step(input_cv, clf_loss, Beta):
     train = optimizer.minimize(loss) 
     return train, loss
 
-def clf_step(encoded_input, label):
+def clf_step(encoded_input, label, valid=False):
     logits = gender_clf(encoded_input)
     prediction = tf.argmax(logits,1)
     truth_label = tf.argmax(label,1)
     clf_optimizer = tf.train.AdamOptimizer(FLAGS.classifier_learning_rate)
     loss = tf.losses.softmax_cross_entropy(onehot_labels=label, logits=logits)
     train = clf_optimizer.minimize(loss)
-    accuracy = tf.reduce_mean(tf.cast(tf.equal(truth_label, prediction), tf.float32))
-    return train, loss, accuracy
+    if valid :
+        accuracy, accuracy_op = tf.metrics.accuracy(truth_label, prediction, name='valid_accuracy')
+        return train, loss, accuracy, accuracy_op
+    else:
+        accuracy = tf.reduce_mean(tf.cast(tf.equal(truth_label, prediction), tf.float32))
+        return train, loss, accuracy
 
 # Create training operations
-features = train_iterator.get_next()
-CVs, labels = itemgetter('CV', 'label')(features)
+train_features = train_iterator.get_next()
+CVs, labels = itemgetter('CV', 'label')(train_features)
 
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
 autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
+
+# Create validation operations
+val_features = valid_iterator.get_next()
+val_CVs, val_labels = itemgetter('CV', 'label')(val_features)
+
+val_clf, val_clf_loss, clf_valid_accuracy, clf_valid_accuracy_op = clf_step(encoder(val_CVs), val_labels, True)
+val_autoencoder_train, val_autoencoder_loss = autoencoder_step(val_CVs,val_clf_loss, FLAGS.beta)
+
+valid_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='valid_accuracy') # to measure validation accuracy during training
+valid_running_vars_initializer = tf.variables_initializer(var_list=valid_running_vars)
+
+
 # ====================== Defining training operations =======================
 
 #Training model
@@ -154,11 +169,26 @@ with tf.Session() as sess:
     for epoch in range(num_epoch):
         if epoch % 2 == 0:
             sess.run(autoencoder_train)
-            if epoch %100 ==0:
+            if epoch % FLAGS.info_freq == 0:
                 loss_value = sess.run(autoencoder_loss)
-                print("autoencoder loss", loss_value)
+                print("autoencoder loss during training : ", loss_value)
+
         else:
             sess.run(clf_train)
-            if (epoch - 1)%100 == 0:
+            if (epoch - 1)%FLAGS.info_freq == 0:
                 accuracy = sess.run(clf_accuracy)
                 print("accuracy", accuracy)
+
+            # validation
+            if (epoch-1) % FLAGS.info_valid_freq == 0:
+                sess.run(valid_running_vars_initializer)  # reinitialize accuracy
+                sess.run(valid_iterator.initializer)
+                while True:
+                    try:
+                        valid_loss = sess.run(val_autoencoder_loss)
+                        sess.run(clf_valid_accuracy_op)
+                    except tf.errors.OutOfRangeError:
+                        break
+                valid_accuracy_value = sess.run(clf_valid_accuracy)
+                print('validation loss of autoencoder : ', valid_loss)
+                print('validation_accuracy of classifier: {}'.format(valid_accuracy_value))
