@@ -140,9 +140,13 @@ beta_values = [0.01,1,0.1,10,100,1000]
 test_accuracies = []
 test_losses = []
 model_params = []
+saving_path = './saved_models/'
+
 for AE_lr in autoencoder_learning_rates:
     for clf_lr in clf_learning_rates:
         for beta in beta_values:
+            hyparam_name = str('AElr_'+ str(AE_lr)+'_CLFlr_'+str(clf_lr)+'_beta_'+str(beta))
+            model_params.append(hyparam_name)
             print('(AE_learning_rate, clf_learning_rate, beta) = ({} ,{} ,{})'.format(AE_lr, clf_lr, beta))
             #Defining training operations
             def autoencoder_step(input_cv, clf_loss, Beta):
@@ -246,14 +250,16 @@ for AE_lr in autoencoder_learning_rates:
                 test_accuracy_value = sess.run(test_clf_accuracy)
                 print('TEST AE loss : ', test_loss)
                 print('TEST clf accuracy : {}'.format(test_accuracy_value))
-
+                #test_results.append({'Parameters': hyparam_name, "test loss": test_loss, "test_accuracy": test_clf_accuracy})
+                test_results = pd.DataFrame(
+                    {'Parameters': model_params, "test loss": test_losses, "test_accuracy": test_accuracies})
+                test_results.to_csv(os.path.join(saving_path,'test_results.csv'))
             print('Session successfully closed !')
+            print('Test results saved')
 
             # ====================== Exporting model =======================
 
             # serialize weights to HDF5
-            saving_path = './saved_models/'
-            hyparam_name = str('AElr_'+ str(AE_lr)+'_CLFlr_'+str(clf_lr)+'_beta_'+str(beta))
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"encoder.h5"))
             print("Encoder saved")
             encoder.save_weights(os.path.join(saving_path, hyparam_name+"decoder.h5"))
@@ -261,7 +267,5 @@ for AE_lr in autoencoder_learning_rates:
 
             results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
             results.to_csv(os.path.join(saving_path+hyparam_name+'_results.csv'))
-            model_params.append(hyparam_name)
+            print('Train results saved')
 
-test_results = pd.DataFrame({'Parameters': hyparam_name, "test loss": test_losses, "test_accuracy": test_accuracies})
-test_results.to_csv(os.path.join(saving_path,'test_results.csv'))
