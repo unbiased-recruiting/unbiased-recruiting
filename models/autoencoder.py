@@ -84,15 +84,6 @@ train_iterator = make_iterator(X_train, y_train,
 valid_iterator = make_iterator(X_val, y_val,
     batch_size=FLAGS.batch_size)
 
-
-def deduce_class(predictions, threshold=0.5):
-    for i in range(len(predictions)):
-        if predictions[i]<threshold:
-            predictions[i]=0
-        else:
-            predictions[i]=1
-    return predictions
-
 # ====================== Network architecture =======================
 
 #Network constant initialisation
@@ -139,11 +130,12 @@ def autoencoder_step(input_cv, clf_loss, Beta):
 
 def clf_step(encoded_input, label):
     logits = gender_clf(encoded_input)
-    prediction = deduce_class(logits)
+    prediction = tf.argmax(logits,1)
+    truth_label = tf.argmax(label,1)
     clf_optimizer = tf.train.AdamOptimizer(FLAGS.classifier_learning_rate)
     loss = tf.losses.softmax_cross_entropy(onehot_labels=label, logits=logits)
     train = clf_optimizer.minimize(loss)
-    accuracy = tf.reduce_mean(tf.cast(tf.equal(label, prediction), tf.float32))
+    accuracy = tf.reduce_mean(tf.cast(tf.equal(truth_label, prediction), tf.float32))
     return train, loss, accuracy
 
 # Create training operations
