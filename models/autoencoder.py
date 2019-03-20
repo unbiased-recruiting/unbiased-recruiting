@@ -151,6 +151,8 @@ CVs, labels = itemgetter('CV', 'label')(train_features)
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
 autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
 
+# ====================== Training Model =======================
+
 # Create validation operations
 val_features = valid_iterator.get_next()
 val_CVs, val_labels = itemgetter('CV', 'label')(val_features)
@@ -176,35 +178,38 @@ test_running_vars_initializer = tf.variables_initializer(var_list=test_running_v
 print('Training Models...')
 #Training model
 init=tf.global_variables_initializer()
-num_epoch=10000
+num_epoch= 1000
+
+adversarial_losses = []
+clf_accuracies = []
 with tf.Session() as sess:
     sess.run(init)
     for epoch in range(num_epoch):
-        if epoch % 2 == 0:
-            sess.run(autoencoder_train)
             if epoch % FLAGS.info_freq == 0:
                 loss_value = sess.run(autoencoder_loss)
+                adversarial_losses.append(loss_value)
                 print("epoch: {} , autoencoder loss during training : {}".format(epoch, loss_value))
 
-        else:
-            sess.run(clf_train)
-            if (epoch - 1)%FLAGS.info_freq == 0:
-                accuracy = sess.run(clf_accuracy)
-                print("epoch: {} , classifier accuracy during training".format(epoch, accuracy))
+            else:
+                sess.run(clf_train)
+                if (epoch - 1)%FLAGS.info_freq == 0:
+                    accuracy = sess.run(clf_accuracy)
+                    clf_accuracies.append(accuracy)
+                    print("epoch: {} , classifier accuracy during training".format(epoch, accuracy))
 
-            # validation
-            if (epoch-1) % FLAGS.info_valid_freq == 0:
-                sess.run(valid_running_vars_initializer)  # reinitialize accuracy
-                sess.run(valid_iterator.initializer)
-                while True:
-                    try:
-                        valid_loss = sess.run(val_autoencoder_loss)
-                        sess.run(clf_valid_accuracy_op)
-                    except tf.errors.OutOfRangeError:
-                        break
-                valid_accuracy_value = sess.run(clf_valid_accuracy)
-                print('epoch: {} , validation_accuracy of classifier: {}'.format(epoch, valid_accuracy_value))
-                print('validation loss of autoencoder : ', valid_loss)
+                # validation
+                if (epoch-1) % FLAGS.info_valid_freq == 0:
+                    sess.run(valid_running_vars_initializer)  # reinitialize accuracy
+                    sess.run(valid_iterator.initializer)
+                    while True:
+                        try:
+                            valid_loss = sess.run(val_autoencoder_loss)
+                            sess.run(clf_valid_accuracy_op)
+                        except tf.errors.OutOfRangeError:
+                            break
+                    valid_accuracy_value = sess.run(clf_valid_accuracy)
+                    print('epoch: {} , validation_accuracy of classifier: {}'.format(epoch, valid_accuracy_value))
+                    print('validation loss of autoencoder : ', valid_loss)
     # test
     sess.run(test_running_vars_initializer)  # reinitialize accuracy
     sess.run(test_iterator.initializer)
@@ -220,3 +225,13 @@ with tf.Session() as sess:
     print('test_accuracy for classifier : {}'.format(test_accuracy_value))
 
 print('Session successfully closed !')
+
+# ====================== Exporting model =======================
+
+# serialize weights to HDF5
+saving_path = './saved_models'
+encoder.save_weights(os.path.join(saving_path, "encoder.h5"))
+print("Encoder saved")
+encoder.save_weights(os.path.join(saving_path, "decoder.h5"))
+print("Decoder saved")
+
