@@ -199,14 +199,14 @@ for AE_lr in autoencoder_learning_rates:
                         if epoch % FLAGS.info_freq == 0:
                             loss_value = sess.run(autoencoder_loss)
                             adversarial_losses.append(loss_value)
-                            print("epoch: {} , autoencoder loss during training : {}".format(epoch, loss_value))
+                            print("TRAIN epoch: {} , AE loss : {}".format(epoch, loss_value))
 
                         else:
                             sess.run(clf_train)
                             if (epoch - 1)%FLAGS.info_freq == 0:
                                 accuracy = sess.run(clf_accuracy)
                                 clf_accuracies.append(accuracy)
-                                print("epoch: {} , classifier accuracy during training".format(epoch, accuracy))
+                                print("TRAIN epoch: {} , clf accuracy : {}".format(epoch, accuracy))
 
                             # validation
                             if (epoch-1) % FLAGS.info_valid_freq == 0:
@@ -219,8 +219,8 @@ for AE_lr in autoencoder_learning_rates:
                                     except tf.errors.OutOfRangeError:
                                         break
                                 valid_accuracy_value = sess.run(clf_valid_accuracy)
-                                print('epoch: {} , validation_accuracy of classifier: {}'.format(epoch, valid_accuracy_value))
-                                print('validation loss of autoencoder : ', valid_loss)
+                                print('VAL epoch: {} , clf accuracy : {}, AE loss : {}'.format(epoch, valid_accuracy_value, valid_loss))
+
                 # test
                 sess.run(test_running_vars_initializer)  # reinitialize accuracy
                 sess.run(test_iterator.initializer)
@@ -232,8 +232,8 @@ for AE_lr in autoencoder_learning_rates:
                         break
 
                 test_accuracy_value = sess.run(test_clf_accuracy)
-                print('test loss of autoencoder : ', test_loss)
-                print('test_accuracy for classifier : {}'.format(test_accuracy_value))
+                print('TEST AE loss : ', test_loss)
+                print('TEST clf loss : {}'.format(test_accuracy_value))
 
             print('Session successfully closed !')
 
