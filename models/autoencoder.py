@@ -130,7 +130,7 @@ def autoencoder_step(input_cv, clf_loss, Beta):
 
 def clf_step(encoded_input, label):
     logits = gender_clf(encoded_input)
-    prediction = tf.cast(tf.argmax(logits,axis =-1 ), tf.int64)
+    prediction = tf.cast(logits, tf.int64)
     clf_optimizer = tf.train.AdamOptimizer(FLAGS.classifier_learning_rate)
     loss = tf.losses.softmax_cross_entropy(onehot_labels=label, logits=logits)
     train = clf_optimizer.minimize(loss)
