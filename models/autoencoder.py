@@ -13,9 +13,9 @@ from operator import itemgetter
 K = tf.keras
 # ====================== Preliminary settings =======================
 
-
-np.random.seed(34) # to make the results reproductible
-tf.random.set_random_seed(35) # to make the results reproductible 
+# fix random seed for reproducibility
+np.random.seed(34)
+tf.random.set_random_seed(35)
 tf.logging.set_verbosity(tf.logging.INFO)
 
 #Flags definition
