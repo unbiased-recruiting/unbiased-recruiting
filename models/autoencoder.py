@@ -132,7 +132,7 @@ beta_values = [0.01,0.1,1,10,100,1000]
 for AE_lr in autoencoder_learning_rates:
     for clf_lr in clf_learning_rates:
         for beta in beta_values:
-            print('(AE_learning_rate, clf_learning_rate, beta) = {}'.format(AE_lr, clf_lr, beta))
+            print('(AE_learning_rate, clf_learning_rate, beta) = ({} ,{} ,{})'.format(AE_lr, clf_lr, beta))
             #Defining training operations
             def autoencoder_step(input_cv, clf_loss, Beta):
                 logits = autoencoder(input_cv)
