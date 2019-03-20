@@ -7,6 +7,8 @@ import os
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+import matplotlib.pyplot as plt
+import sys
 
 from operator import itemgetter
 
@@ -123,10 +125,11 @@ autoencoder.summary()
 #Defining training operations
 def autoencoder_step(input_cv, clf_loss, Beta):
     logits = autoencoder(input_cv)
-    loss = tf.losses.mean_squared_error(input_cv, logits) - Beta*clf_loss
+    autoencoder_loss=tf.losses.mean_squared_error(input_cv, logits)
+    loss = autoencoder_loss - Beta*clf_loss
     optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
     train = optimizer.minimize(loss) 
-    return train, loss
+    return train, loss, autoencoder_loss
 
 def clf_step(encoded_input, label):
     logits = gender_clf(encoded_input)
@@ -143,7 +146,7 @@ features = train_iterator.get_next()
 CVs, labels = itemgetter('CV', 'label')(features)
 
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
-autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
+autoencoder_train, adversarial_loss, autoencoder_loss = autoencoder_step(CVs,clf_loss, FLAGS.beta)
 # ====================== Training Model =======================
 
 #Training model
@@ -152,23 +155,57 @@ num_epoch=200
 
 adversarial_losses = []
 clf_accuracies = []
+autoencoder_losses=[]
+even_epoch=[]
+uneven_epoch=[]
 with tf.Session() as sess:
     sess.run(init)
     for epoch in range(num_epoch):
         if epoch % 2 == 0:
             sess.run(autoencoder_train)
-            loss_value = sess.run(autoencoder_loss)
+            loss_value = sess.run(adversarial_loss)
             adversarial_losses.append(loss_value)
+            autoencoder_loss_value=sess.run(autoencoder_loss)
+            autoencoder_losses.append(autoencoder_loss_value)
+            even_epoch.append(epoch)
             if epoch %100 ==0:
                 print("autoencoder loss", loss_value)
         else:
             sess.run(clf_train)
             accuracy = sess.run(clf_accuracy)
             clf_accuracies.append(accuracy)
+            uneven_epoch.append(epoch)
             if (epoch - 1)%100 == 0:
                 accuracy = sess.run(clf_accuracy)
                 print("accuracy", accuracy)
 
+if len(sys.argv)>1 and str(sys.argv[1])=='plot':
+    plt.figure(1, figsize=(10,15))
+    plt.subplot(3,1,1)
+    plt.plot(even_epoch, adversarial_losses, color="red")
+    plt.title("Adversarial Loss vs Epochs")
+    plt.xlabel("Number of epoch")
+    plt.ylabel("Adversarial Loss")
+    plt.subplot(3,1,2)
+    plt.plot(even_epoch, autoencoder_losses, color="green")
+    plt.title("Autoencoder Loss vs Epochs")
+    plt.xlabel("Number of epoch")
+    plt.ylabel("Autoencoder Loss")
+    plt.subplot(3,1,3)
+    plt.plot(uneven_epoch, clf_accuracies, color="orange")
+    plt.title("Classifier Accuracy vs Epochs")
+    plt.xlabel("Number of epoch")
+    plt.ylabel("Classifier accuracy")
+    name="losses and accuracy vs epochs for Beta={Beta}, batch_size={batch_size}, learning_rate={learning_rate}.png".format(Beta=FLAGS.beta, batch_size=FLAGS.batch_size, learning_rate=FLAGS.learning_rate)
+    plt.savefig("graphs/"+name)
+
+
+    plt.figure(2)
+    plt.plot(clf_accuracies,autoencoder_losses)
+    plt.title("Autoencoder Loss vs Classifier Accuracy")
+    plt.xlabel("Classifier accuracy")
+    plt.ylabel("Autoencoder Loss")
+    plt.savefig("graphs/autoencoder loss vs classifier accuracy for Beta={Beta}, batch_size={batch_size}, learning_rate={learning_rate}.png".format(Beta=FLAGS.beta, batch_size=FLAGS.batch_size, learning_rate=FLAGS.learning_rate))
 
 print(adversarial_losses)
 print(clf_accuracies)
