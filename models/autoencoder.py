@@ -6,7 +6,6 @@ from ast import literal_eval
 import os
 import numpy as np
 import tensorflow as tf
-import tensorflow_hub as hub
 import pandas as pd
 
 from operator import itemgetter
@@ -143,30 +142,22 @@ features = train_iterator.get_next()
 CVs, labels = itemgetter('CV', 'label')(features)
 
 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
-print("hello1")
 autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, 0.0001)
-print("hello2")
 # ====================== Defining training operations =======================
 
 #Training model
 init=tf.global_variables_initializer()
 num_epoch=10000
-print("hello3")
 with tf.Session() as sess:
     sess.run(init)
-    print("hello4")
     for epoch in range(num_epoch):
         if epoch % 2 == 0:
             sess.run(autoencoder_train)
-            print("hello5")
             if epoch %100 ==0:
                 loss_value = sess.run(autoencoder_loss)
                 print("autoencoder loss", loss_value)
         else:
             sess.run(clf_train)
-            print("hello6")
             if (epoch - 1)%100 == 0:
                 accuracy = sess.run(clf_accuracy)
                 print("accuracy", accuracy)
-        
-        
