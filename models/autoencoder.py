@@ -122,7 +122,7 @@ print("autoencoder")
 autoencoder.summary()
 # ====================== Defining training operations =======================
 
-num_epoch= 100000
+num_epoch= 5000
 autoencoder_learning_rates = [0.1,0.01,0.001,0.0001,0.00001]
 clf_learning_rates = [0.0001,0.00001,0.001,0.01]
 beta_values = [0.01,1,0.1,10,100,1000]
