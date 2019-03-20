@@ -76,3 +76,6 @@ df_val.to_csv(os.path.join(data_dir, "val.csv"),index = False)
 df_test.to_csv(os.path.join(data_dir, "test.csv"),index = False)
 
 
+print(len(df_train['TXT'][0]))
+
+
