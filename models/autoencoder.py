@@ -218,27 +218,28 @@ for batch_size in batch_sizes:
                             if epoch % 2 == 0:
                                 loss_value = sess.run(autoencoder_loss)
                                 adversarial_losses.append(loss_value)
-                                print("TRAIN epoch: {} , AE loss : {}".format(epoch, loss_value))
+                                if epoch % FLAGS.info_freq == 0:
+                                    print("TRAIN epoch: {} , AE loss : {}".format(epoch, loss_value))
 
                             else:
                                 sess.run(clf_train)
+                                accuracy = sess.run(clf_accuracy)
+                                clf_accuracies.append(accuracy)
                                 if (epoch - 1)%FLAGS.info_freq == 0:
-                                    accuracy = sess.run(clf_accuracy)
-                                    clf_accuracies.append(accuracy)
                                     print("TRAIN epoch: {} , clf accuracy : {}".format(epoch, accuracy))
 
                                 # validation
-                                if (epoch-1) % FLAGS.info_valid_freq == 0:
-                                    sess.run(valid_running_vars_initializer)  # reinitialize accuracy
-                                    sess.run(valid_iterator.initializer)
-                                    while True:
-                                        try:
-                                            valid_loss = sess.run(val_autoencoder_loss)
-                                            sess.run(clf_valid_accuracy_op)
-                                        except tf.errors.OutOfRangeError:
-                                            break
-                                    valid_accuracy_value = sess.run(clf_valid_accuracy)
-                                    print('VAL epoch: {} , clf accuracy : {}, AE loss : {}'.format(epoch, valid_accuracy_value, valid_loss))
+                            if (epoch-1) % FLAGS.info_valid_freq == 0:
+                                sess.run(valid_running_vars_initializer)  # reinitialize accuracy
+                                sess.run(valid_iterator.initializer)
+                                while True:
+                                    try:
+                                        valid_loss = sess.run(val_autoencoder_loss)
+                                        sess.run(clf_valid_accuracy_op)
+                                    except tf.errors.OutOfRangeError:
+                                        break
+                                valid_accuracy_value = sess.run(clf_valid_accuracy)
+                                print('VAL epoch: {} , clf accuracy : {}, AE loss : {}'.format(epoch, valid_accuracy_value, valid_loss))
 
                     # test
                     sess.run(test_running_vars_initializer)  # reinitialize accuracy
