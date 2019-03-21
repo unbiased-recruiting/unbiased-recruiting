@@ -49,7 +49,7 @@ for df in data:
 
 saving_path = './saved_models/normalized/'
 if not os.path.exists(saving_path):
-    os.mkdir(saving_path)
+    os.mkdirs(saving_path)
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
