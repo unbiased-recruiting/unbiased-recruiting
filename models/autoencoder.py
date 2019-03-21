@@ -265,10 +265,12 @@ for batch_size in batch_sizes:
                 # ====================== Exporting model =======================
 
                 # serialize weights to HDF5
+                '''
                 encoder.save_weights(os.path.join(saving_path, hyparam_name+"encoder.h5"))
                 print("Encoder saved")
                 encoder.save_weights(os.path.join(saving_path, hyparam_name+"decoder.h5"))
                 print("Decoder saved")
+                '''
 
                 # Train results into csv
                 results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
