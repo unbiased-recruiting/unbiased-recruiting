@@ -45,9 +45,11 @@ print('Preprocessing Data...')
 #Converting TXT column from str to array
 for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: literal_eval(x))
-    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w) for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
+    df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/10000 for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
 
-saving_path = './saved_models/'
+saving_path = './saved_models/normalized/'
+if not os.path.exists(saving_path):
+    os.mkdir(saving_path)
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
@@ -126,7 +128,7 @@ autoencoder.summary()
 # ====================== Defining training operations =======================
 
 num_epoch= 5000
-batch_sizes = [10, 32, 50, 100 ]
+batch_sizes = [32]#10,, 50, 100 ]
 autoencoder_learning_rates = [0.1,0.01,0.001,0.0001,0.00001]
 clf_learning_rates = [0.0001,0.00001,0.001,0.01, 0.1]
 beta_values = [0.01,1,0.1,10,100,1000]
