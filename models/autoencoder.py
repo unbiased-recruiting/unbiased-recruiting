@@ -215,7 +215,7 @@ for batch_size in batch_sizes:
                 with tf.Session() as sess:
                     sess.run(init)
                     for epoch in range(num_epoch):
-                            if epoch % FLAGS.info_freq == 0:
+                            if epoch % 2 == 0:
                                 loss_value = sess.run(autoencoder_loss)
                                 adversarial_losses.append(loss_value)
                                 print("TRAIN epoch: {} , AE loss : {}".format(epoch, loss_value))
