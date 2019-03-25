@@ -113,5 +113,5 @@ test.csv
 
 #NN models HDFS
 *.h5
-
+.DS_Store
 
