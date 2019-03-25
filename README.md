@@ -2,9 +2,9 @@
 
 ## Context and goal
 
-Machine Learning algorithms are more and more used to match job applicants with job offers. One of the arguments used by Machine Learning proponents is that algorithms are more objective than humans but is it really the case? We have seen recent scandals involving recruiting algorithms discriminating against women - Amazon 2018. The question is then how do we make recruiting algorithms genderless?
+Machine Learning algorithms are more and more used to match job applicants to job offers. One of the arguments used by Machine Learning proponents is that algorithms are more objective than humans but is it really the case? We have seen recent scandals involving recruiting algorithms discriminating against women - Amazon 2018. The question is then how do we make recruiting algorithms genderless?
 
-This project aims at making sure that CV s representations do not contain any gender component  stemming from linguistic characteristics or text syntax but do contain the information necessary to match it to a relevant job offer. 
+This project aims at making sure that CV representations do not contain any gender component  stemming from linguistic characteristics or text syntax but do contain the information necessary to match it to a relevant job offer. 
 
 ## High level explanation
 
@@ -19,7 +19,32 @@ We design a custom loss including two variable:
 
 $$ Loss_{Adversarial} = Loss_{Autoencoder} - \beta*  Loss_{Classifier} $$
 
-Here we want our networks to work together. Finding out the gender 
+Here we want our networks to work together. Finding out the gender or failing to reconstruct the CV are penalising factors during the training phase of the network.
 
-## Requirements
+## Requirement
+
+All scripts used in this project use python3. Please refer to the requirements.txt file for the specific libraries to download.
+
+## Pre processing
+
+Please create a data folder at the root of thr project and put a CSV file containing parsed CVs and the gender associated to each CV.
+
+You have the choice between two types of CV encoding:
+
+* Simple word tokenization run `python tokenisation.py` from preprocessing folder
+* One hot encoding run `python Onehot.py` from preprocessing folder
+
+Both scripts will generate 3 files in the data folder named train.csv, val.csv and test.csv.
+
+## Training phase
+
+The training phase is simply executed by running `python autoencoder.py` within the models .
+
+Once finished the training will produce a log file containing training information such as loss value at different epochs. 
+
+Models will also be exported in HDFS format.
+
+
+
+
 

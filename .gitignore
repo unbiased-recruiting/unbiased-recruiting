@@ -111,5 +111,7 @@ train.csv
 val.csv
 test.csv
 
+#NN models HDFS
+*.h5
 
-/
+
