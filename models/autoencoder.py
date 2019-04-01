@@ -129,9 +129,9 @@ autoencoder.summary()
 
 num_epoch= 5000
 batch_sizes = [32]#10,, 50, 100 ]
-autoencoder_learning_rates = [0.1,0.01,0.001,0.0001,0.00001]
-clf_learning_rates = [0.0001,0.00001,0.001,0.01, 0.1]
-beta_values = [0.01,1,0.1,10,100,1000]
+autoencoder_learning_rates = [0.01]#,0.1,0.001,0.0001,0.00001]
+clf_learning_rates = [ 0.1]#,0.0001,0.00001,0.001,0.01]
+beta_values = [1]#[0.01,1,0.1,10,100,1000]
 
 
 # Manual grid search
