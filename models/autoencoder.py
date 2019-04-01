@@ -7,6 +7,8 @@ import os
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import sys
 
