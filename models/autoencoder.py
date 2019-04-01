@@ -52,8 +52,11 @@ for df in data:
     df.loc[:, 'TXT'] = df.loc[:, 'TXT'].apply(lambda x: [float(w)/10000 for w in x]) #Normalizing tokens (10 000 is the maximum and 0 min)
 
 saving_path = './saved_models/normalized/'
+graphs_path = './graphs'
 if not os.path.exists(saving_path):
     os.mkdirs(saving_path)
+if not os.path.exists(graphs_path):
+    os.makedirs(graphs_path)
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
@@ -131,7 +134,7 @@ print("autoencoder")
 autoencoder.summary()
 # ====================== Defining training operations =======================
 
-num_epoch= 5000
+num_epoch= 6 #must be an even number
 batch_sizes = [32]#10,, 50, 100 ]
 autoencoder_learning_rates = [0.01]#,0.1,0.001,0.0001,0.00001]
 clf_learning_rates = [ 0.1]#,0.0001,0.00001,0.001,0.01]
@@ -139,6 +142,7 @@ beta_values = [1]#[0.01,1,0.1,10,100,1000]
 
 
 # Manual grid search
+model_params = []
 
 for batch_size in batch_sizes:
     for AE_lr in autoencoder_learning_rates:
@@ -209,7 +213,6 @@ for batch_size in batch_sizes:
                 test_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='test_accuracy') # to measure validation accuracy during training
                 test_running_vars_initializer = tf.variables_initializer(var_list=test_running_vars)
 
-
                 # ====================== Defining training operations =======================
                 print('Training Models...')
                 #Training model
@@ -218,12 +221,13 @@ for batch_size in batch_sizes:
                 adversarial_losses = []
                 clf_accuracies = []
                 autoencoder_losses = []
+
                 even_epoch=[]
                 odd_epoch=[]
+
                 test_accuracies = []
                 AE_test_losses = []
                 ADV_test_losses = []
-                model_params = []
                 with tf.Session() as sess:
                     sess.run(init)
                     for epoch in range(num_epoch):
@@ -232,7 +236,7 @@ for batch_size in batch_sizes:
                                 autoencoder_loss_value = sess.run(autoencoder_loss)
                                 autoencoder_losses.append(autoencoder_loss_value)
                                 adversarial_loss_value = sess.run(adversarial_loss)
-                                adversarial_losses.append(loss_value)
+                                adversarial_losses.append(adversarial_loss_value)
                                 if epoch % FLAGS.info_freq == 0:
                                     print("TRAIN epoch: {} , AE loss : {}, ADV loss : {}".format(epoch, autoencoder_loss_value, adversarial_loss_value))
    
@@ -281,7 +285,8 @@ for batch_size in batch_sizes:
                 print('Test results saved')
                                            
                  # Train results into csv
-                results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
+                print("DEBUG - len of adv, ae loss and acc: ({},{},{})".format(len(adversarial_losses), len(autoencoder_losses), len(clf_accuracies)))
+                results = pd.DataFrame({"train Adversarial loss": adversarial_losses, "train AE loss": autoencoder_losses, "train clf accuracy": clf_accuracies})
                 results.to_csv(os.path.join(saving_path+hyparam_name+'_results.csv'))
                 
                 print('Train results saved')
@@ -317,7 +322,8 @@ for batch_size in batch_sizes:
                   plt.xlabel("Number of epoch")
                   plt.ylabel("Classifier accuracy")
                   # TODO : beware if values of beta etc are FLAGS values afterwards :)
-                  name="losses and accuracy vs epochs for Beta={Beta}, batch_size={batch_size}, AE_learning_rate={learning_rate}classifier_learning_rate={clf_learning_rate}.png".format(Beta=beta, batch_size=batch_size, learning_rate=AE_lr,clf_learning_rate=clf_lr)
+                  name="losses and accuracy vs epochs for Beta={Beta}, batch_size={batch_size}, AE_learning_rate={learning_rate}, classifier_learning_rate={clf_learning_rate}.png".format(Beta=beta, batch_size=batch_size, learning_rate=AE_lr,clf_learning_rate=clf_lr)
+
                   plt.savefig("graphs/"+name)
 
 
@@ -326,7 +332,7 @@ for batch_size in batch_sizes:
                   plt.title("Autoencoder Loss vs Classifier Accuracy")
                   plt.xlabel("Classifier accuracy")
                   plt.ylabel("Autoencoder Loss")
-                  plt.savefig("graphs/autoencoder loss vs classifier accuracy for Beta={Beta}, batch_size={batch_size}, learning_rate={learning_rate}.png".format(Beta=FLAGS.beta, batch_size=FLAGS.batch_size, learning_rate=FLAGS.learning_rate))
+                  plt.savefig("graphs/autoencoder loss vs classifier accuracy for Beta={Beta}, batch_size={batch_size}, AE_learning_rate={learning_rate}, classifier_learning_rate={clf_learning_rate}.png".format(Beta=beta, batch_size=batch_size, learning_rate=AE_lr,clf_learning_rate=clf_lr))
 
                
                   print('Session successfully closed !')
