@@ -7,6 +7,8 @@ import os
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+import matplotlib.pyplot as plt
+import sys
 
 from operator import itemgetter
 
@@ -136,10 +138,6 @@ beta_values = [1]#[0.01,1,0.1,10,100,1000]
 
 # Manual grid search
 
-test_accuracies = []
-test_losses = []
-model_params = []
-
 for batch_size in batch_sizes:
     for AE_lr in autoencoder_learning_rates:
         print('Building Iterators...')
@@ -151,16 +149,19 @@ for batch_size in batch_sizes:
                                       batch_size=batch_size)
         for clf_lr in clf_learning_rates:
             for beta in beta_values:
+                
                 hyparam_name = str('batchsize_'+str(batch_size)+'AElr_'+ str(AE_lr)+'_CLFlr_'+str(clf_lr)+'_beta_'+str(beta))
                 model_params.append(hyparam_name)
                 print('(batch_size, AE_learning_rate, clf_learning_rate, beta) = ({} ; {} ; {} ;{})'.format(batch_size,AE_lr, clf_lr, beta))
+                
                 #Defining training operations
                 def autoencoder_step(input_cv, clf_loss, Beta):
                     logits = autoencoder(input_cv)
-                    loss = tf.losses.mean_squared_error(input_cv, logits) - Beta*clf_loss
+                    autoencoder_loss=tf.losses.mean_squared_error(input_cv, logits)
+                    adversarial_loss = autoencoder_loss - Beta*clf_loss
                     optimizer = tf.train.AdamOptimizer(AE_lr)
-                    train = optimizer.minimize(loss)
-                    return train, loss
+                    train = optimizer.minimize(adversarial_loss)
+                    return train, adversarial_loss, autoencoder_loss
 
                 def clf_step(encoded_input, label, dataset = 'train'):
                     logits = gender_clf(encoded_input)
@@ -182,7 +183,7 @@ for batch_size in batch_sizes:
                 CVs, labels = itemgetter('CV', 'label')(train_features)
 
                 clf_train, clf_loss, clf_accuracy = clf_step(encoder(CVs), labels)
-                autoencoder_train, autoencoder_loss = autoencoder_step(CVs,clf_loss, beta)
+                autoencoder_train, adversarial_loss, autoencoder_loss = autoencoder_step(CVs,clf_loss, beta)
 
                 # ====================== Training Model =======================
 
@@ -191,7 +192,7 @@ for batch_size in batch_sizes:
                 val_CVs, val_labels = itemgetter('CV', 'label')(val_features)
 
                 val_clf, val_clf_loss, clf_valid_accuracy, clf_valid_accuracy_op = clf_step(encoder(val_CVs), val_labels, 'valid')
-                val_autoencoder_train, val_autoencoder_loss = autoencoder_step(val_CVs,val_clf_loss, beta)
+                val_autoencoder_train, val_adversarial_loss, val_autoencoder_loss = autoencoder_step(val_CVs,val_clf_loss, beta)
 
                 valid_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='valid_accuracy') # to measure validation accuracy during training
                 valid_running_vars_initializer = tf.variables_initializer(var_list=valid_running_vars)
@@ -201,7 +202,7 @@ for batch_size in batch_sizes:
                 test_CVs, test_labels = itemgetter('CV', 'label')(test_features)
 
                 test_clf, test_clf_loss, test_clf_accuracy, test_clf_accuracy_op = clf_step(encoder(test_CVs), test_labels, 'test')
-                test_autoencoder_train, test_autoencoder_loss = autoencoder_step(test_CVs,test_clf_loss, beta)
+                test_autoencoder_train, test_adversarial_loss, test_autoencoder_loss = autoencoder_step(test_CVs,test_clf_loss, beta)
 
                 test_running_vars = tf.get_collection(tf.GraphKeys.LOCAL_VARIABLES, scope='test_accuracy') # to measure validation accuracy during training
                 test_running_vars_initializer = tf.variables_initializer(var_list=test_running_vars)
@@ -214,19 +215,30 @@ for batch_size in batch_sizes:
 
                 adversarial_losses = []
                 clf_accuracies = []
+                autoencoder_losses = []
+                even_epoch=[]
+                odd_epoch=[]
+                test_accuracies = []
+                AE_test_losses = []
+                ADV_test_losses = []
+                model_params = []
                 with tf.Session() as sess:
                     sess.run(init)
                     for epoch in range(num_epoch):
                             if epoch % 2 == 0:
-                                loss_value = sess.run(autoencoder_loss)
+                                even_epoch.append(epoch)
+                                autoencoder_loss_value = sess.run(autoencoder_loss)
+                                autoencoder_losses.append(autoencoder_loss_value)
+                                adversarial_loss_value = sess.run(adversarial_loss)
                                 adversarial_losses.append(loss_value)
                                 if epoch % FLAGS.info_freq == 0:
-                                    print("TRAIN epoch: {} , AE loss : {}".format(epoch, loss_value))
-
+                                    print("TRAIN epoch: {} , AE loss : {}, ADV loss : {}".format(epoch, autoencoder_loss_value, adversarial_loss_value))
+   
                             else:
                                 sess.run(clf_train)
                                 accuracy = sess.run(clf_accuracy)
                                 clf_accuracies.append(accuracy)
+                                odd_epoch.append(epoch)
                                 if (epoch - 1)%FLAGS.info_freq == 0:
                                     print("TRAIN epoch: {} , clf accuracy : {}".format(epoch, accuracy))
 
@@ -236,34 +248,42 @@ for batch_size in batch_sizes:
                                 sess.run(valid_iterator.initializer)
                                 while True:
                                     try:
-                                        valid_loss = sess.run(val_autoencoder_loss)
+                                        AE_valid_loss = sess.run(val_autoencoder_loss)
+                                        ADV_valid_loss = sess.run(val_adversarial_loss)
                                         sess.run(clf_valid_accuracy_op)
                                     except tf.errors.OutOfRangeError:
                                         break
                                 valid_accuracy_value = sess.run(clf_valid_accuracy)
-                                print('VAL epoch: {} , clf accuracy : {}, AE loss : {}'.format(epoch, valid_accuracy_value, valid_loss))
-
+                                print('VAL epoch: {} , clf accuracy : {}, AE loss : {}, ADV loss : {}'.format(epoch, valid_accuracy_value, AE_valid_loss, ADV_valid_loss))            
+       
                     # test
                     sess.run(test_running_vars_initializer)  # reinitialize accuracy
                     sess.run(test_iterator.initializer)
                     while True:
                         try:
-                            test_loss = sess.run(test_autoencoder_loss)
+                            AE_test_loss = sess.run(test_autoencoder_loss)
+                            ADV_test_loss = sess.run(test_adversarial_loss)
                             sess.run(test_clf_accuracy_op)
                         except tf.errors.OutOfRangeError:
                             break
                     test_accuracy_value = sess.run(test_clf_accuracy)
-                    print('TEST AE loss : ', test_loss)
+                    print('TEST - AE loss : {}, ADV loss : {} '.format(AE_test_loss, ADV_test_loss))
                     print('TEST clf accuracy : {}'.format(test_accuracy_value))
                     test_accuracies.append(test_accuracy_value)
-                    test_losses.append(test_loss)
+                    AE_test_losses.append(AE_test_loss)
+                    ADV_test_losses.append(ADV_test_loss)
                     test_results = pd.DataFrame(
-                        {'Parameters': model_params, "test loss": test_losses, "test_accuracy": test_accuracies}) #Overwrite test results
+                        {'Parameters': model_params, "AE test loss": AE_test_losses, "test_accuracy": test_accuracies, "ADV test loss": ADV_test_losses}) #Overwrite test results
                     test_results.to_csv(os.path.join(saving_path,'test_results.csv'))
 
                 print('Test results saved')
-                print('Session successfully closed !')
-
+                                           
+                 # Train results into csv
+                results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
+                results.to_csv(os.path.join(saving_path+hyparam_name+'_results.csv'))
+                
+                print('Train results saved')
+                                           
                 # ====================== Exporting model =======================
 
                 # serialize weights to HDF5
@@ -273,9 +293,39 @@ for batch_size in batch_sizes:
                 encoder.save_weights(os.path.join(saving_path, hyparam_name+"decoder.h5"))
                 print("Decoder saved")
                 '''
+                                           
+                # ====================== Plotting Train results =======================
+                                           
+                if len(sys.argv)>1 and str(sys.argv[1])=='plot':
+                  print("plotting TRAIN graphs...")
+                  plt.figure(1, figsize=(10,15))
+                  plt.subplot(3,1,1)
+                  plt.plot(even_epoch, adversarial_losses, color="red")
+                  plt.title("Adversarial Loss vs Epochs")
+                  plt.xlabel("Number of epoch")
+                  plt.ylabel("Adversarial Loss")
+                  plt.subplot(3,1,2)
+                  plt.plot(even_epoch, autoencoder_losses, color="green")
+                  plt.title("Autoencoder Loss vs Epochs")
+                  plt.xlabel("Number of epoch")
+                  plt.ylabel("Autoencoder Loss")
+                  plt.subplot(3,1,3)
+                  plt.plot(odd_epoch, clf_accuracies, color="orange")
+                  plt.title("Classifier Accuracy vs Epochs")
+                  plt.xlabel("Number of epoch")
+                  plt.ylabel("Classifier accuracy")
+                  # TODO : beware if values of beta etc are FLAGS values afterwards :)
+                  name="losses and accuracy vs epochs for Beta={Beta}, batch_size={batch_size}, AE_learning_rate={learning_rate}classifier_learning_rate={clf_learning_rate}.png".format(Beta=beta, batch_size=batch_size, learning_rate=AE_lr,clf_learning_rate=clf_lr)
+                  plt.savefig("graphs/"+name)
 
-                # Train results into csv
-                results = pd.DataFrame({'train Adversarial loss': adversarial_losses, "train clf accuracy": clf_accuracies})
-                results.to_csv(os.path.join(saving_path+hyparam_name+'_results.csv'))
-                print('Train results saved')
+
+                  plt.figure(2)
+                  plt.plot(clf_accuracies,autoencoder_losses)
+                  plt.title("Autoencoder Loss vs Classifier Accuracy")
+                  plt.xlabel("Classifier accuracy")
+                  plt.ylabel("Autoencoder Loss")
+                  plt.savefig("graphs/autoencoder loss vs classifier accuracy for Beta={Beta}, batch_size={batch_size}, learning_rate={learning_rate}.png".format(Beta=FLAGS.beta, batch_size=FLAGS.batch_size, learning_rate=FLAGS.learning_rate))
+
+               
+                  print('Session successfully closed !')
 
