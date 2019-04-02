@@ -54,9 +54,9 @@ for df in data:
 saving_path = './saved_models/normalized/'
 graphs_path = './graphs'
 if not os.path.exists(saving_path):
-    os.mkdirs(saving_path)
+    os.makedirs(saving_path)
 if not os.path.exists(graphs_path):
-    os.makedirs(graphs_path)
+    os.mkdirs(graphs_path)
 
 X_train = np.array(df_train['TXT'].tolist(), dtype = np.float32)
 X_val = np.array(df_val['TXT'].tolist(), dtype = np.float32)
