@@ -8,7 +8,6 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 import matplotlib
-
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import sys
@@ -95,42 +94,60 @@ def make_iterator(CVs, labels, batch_size, shuffle_and_repeat=False):
 
 # Network constant initialisation
 num_inputs = len(df_train.loc[0, 'TXT'])
+compression_size = 1024
 
 
 # Layer initialisation
 
-def model_builder(input_cv, compression_size, num_inputs, type='MLP'):
+def MLP_model_builder(input_cv, compression_size, num_inputs):
     print('Building Models...')
     # autoencoder
-    if type == 'MLP':
-        print('MLP architecture')
-        encoded = K.layers.Dense(compression_size, activation='relu')(input_cv)
-        decoded = K.layers.Dense(num_inputs, activation='sigmoid')(encoded)
-        # autoencoder = K.Model(input_cv, decoded, name = "autoencoder")
-        # encoder = K.Model(input_cv, encoded, name = "encoder")
-        # encoded_input = K.layers.Input(shape = (compression_size,), name = "encoder_input")
-        # decoded_layer = autoencoder.layers[-1]
-        # decoder = K.Model(encoded_input, decoded_layer(encoded_input))
+    print('MLP architecture')
+    encoded = K.layers.Dense(compression_size, activation='relu')(input_cv)
+    decoded = K.layers.Dense(num_inputs, activation='sigmoid')(encoded)
+    autoencoder = K.Model(input_cv, decoded, name = "autoencoder")
+    encoder = K.Model(input_cv, encoded, name = "encoder")
+    encoded_input = K.layers.Input(shape = (compression_size,), name = "encoder_input")
+    decoded_layer = autoencoder.layers[-1]
+    decoder = K.Model(encoded_input, decoded_layer(encoded_input))
+    # gender_clf
+    clf = K.layers.Dense(compression_size, activation='relu')(encoded_input)
+    outputs = K.layers.Dense(units=2)(clf)
+    gender_clf = K.Model(encoded_input, outputs, name='clf')
 
-    if type == 'LSTM':
-        print('LSTM architecture')
-        encoded = K.layers.LSTM(compression_size, activation='tanh', recurrent_activation='hard_sigmoid', use_bias=True,
-                                kernel_initializer='glorot_uniform', recurrent_initializer='orthogonal',
-                                bias_initializer='zeros', unit_forget_bias=True, kernel_regularizer=None,
-                                recurrent_regularizer=None, bias_regularizer=None, activity_regularizer=None,
-                                kernel_constraint=None, recurrent_constraint=None, bias_constraint=None, dropout=0.0,
-                                recurrent_dropout=0.0, implementation=1, return_sequences=False, return_state=False,
-                                go_backwards=False, stateful=False, unroll=False)
-        decoded = K.layers.LSTM(num_inputs, activation='tanh', recurrent_activation='hard_sigmoid', use_bias=True,
-                                kernel_initializer='glorot_uniform', recurrent_initializer='orthogonal',
-                                bias_initializer='zeros', unit_forget_bias=True, kernel_regularizer=None,
-                                recurrent_regularizer=None, bias_regularizer=None, activity_regularizer=None,
-                                kernel_constraint=None, recurrent_constraint=None, bias_constraint=None, dropout=0.0,
-                                recurrent_dropout=0.0, implementation=1, return_sequences=False, return_state=False,
-                                go_backwards=False, stateful=False, unroll=False)
+    return autoencoder, encoder, decoder, gender_clf
 
-    else :
-        print('Problem occured when specifying AutoEncoder Type of architecture')
+def LSTM_model_builder(input_cv, time_steps, compression_size, nb_layers=1 ):
+
+    print('LSTM architecture')
+    from keras.models import Sequential, RepeatVector, Input
+    from keras.layers import Dense
+    from keras.layers import LSTM
+    from keras.layers import Dropout
+
+    # Initialising the RNN
+    encoded = Sequential()
+
+    # Adding the first LSTM layer and some Dropout regularisation
+    encoded.add(LSTM(units=compression_size, return_sequences=True, input_shape=(time_steps,input_cv)))
+    encoded.add(Dropout(0.2))
+
+    decoded = RepeatVector(time_steps)(encoded)
+    decoded.add(LSTM(units=input_cv, return_sequences=True, input_shape=(time_steps,compression_size)))
+    decoded.add(Dropout(0.2))
+
+    for i in range(nb_layers):
+        # Adding an i-th LSTM layer and some Dropout regularisation
+        encoded.add(LSTM(units=50, return_sequences=True))
+        encoded.add(Dropout(0.2))
+        decoded.add(LSTM(units=50, return_sequences=True))
+        decoded.add(Dropout(0.2))
+
+    # Adding the output layer
+    encoded.add(Dense(units=compression_size))
+    decoded.add(Dense(units=input_cv))
+    # Compiling the RNN
+    #encoder.compile(optimizer='adam', loss='mean_squared_error')
 
     autoencoder = K.Model(input_cv, decoded, name="autoencoder")
     encoder = K.Model(input_cv, encoded, name="encoder")
@@ -145,10 +162,12 @@ def model_builder(input_cv, compression_size, num_inputs, type='MLP'):
 
     return autoencoder, encoder, decoder, gender_clf
 
+
 # Autoencoder layers
 input_cv = K.layers.Input(shape=(num_inputs,), name="input_cv")
 
-autoencoder, encoder, decoder, gender_clf = model_builder(input_cv, 1024, num_inputs)
+autoencoder, encoder, decoder, gender_clf = MLP_model_builder(input_cv, compression_size, num_inputs)
+# autoencoder, encoder, decoder, gender_clf = LSTM_model_builder(input_cv, 3, compression_size, nb_layers=1)
 
 print("encoder")
 encoder.summary()
