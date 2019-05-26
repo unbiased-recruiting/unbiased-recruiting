@@ -5,6 +5,7 @@
 Machine Learning algorithms are more and more used to match job applicants to job offers. One of the arguments used by Machine Learning proponents is that algorithms are more objective than humans but is it really the case? We have seen recent scandals involving recruiting algorithms discriminating against women - Amazon 2018. The question is then how do we make recruiting algorithms genderless?
 
 This project aims at making sure that CV representations do not contain any gender component  stemming from linguistic characteristics or text syntax but do contain the information necessary to match it to a relevant job offer. 
+You can read about the results and approach in the file "Unbiases_recruiting_report.pdf" at the root of the project.
 
 ## High level explanation
 
